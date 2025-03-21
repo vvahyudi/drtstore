@@ -4,12 +4,12 @@ import React from "react"
 
 const Navbar = () => {
 	return (
-		<nav className="navbar bg-base-100 shadow-sm mx-auto p-2">
+		<nav className="navbar bg-slate-900 shadow-sm mx-auto p-2">
 			<div className="navbar-start"></div>
-			<div className="navbar-center rounded-full bg-accent">
+			<div className="navbar-center rounded-full">
 				<Link className="text-xl" href="/">
 					<Image
-						className="scale-150"
+						className="scale-250"
 						src={"/logo-drtsurf.png"}
 						width={100}
 						height={100}

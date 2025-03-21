@@ -57,7 +57,7 @@ const SquareImageSlider: React.FC<ImageSliderProps> = ({
 	}
 
 	return (
-		<section className="@container w-full mx-auto p-4">
+		<section className="@container w-full max-w-2xl mx-auto p-4">
 			<Card
 				className="relative aspect-square overflow-hidden shadow-lg"
 				onMouseEnter={handleMouseEnter}

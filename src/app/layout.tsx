@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Roboto_Serif } from "next/font/google"
 import "@/styles/globals.css"
 import Navbar from "@/components/Navbar"
-
+import WhatsAppButton from "@/components/WhatsAppButton"
 const geistSans = Geist({
 	variable: "--font-geist-sans",
 	subsets: ["latin"],
@@ -33,6 +33,7 @@ export default function RootLayout({
 			>
 				<Navbar />
 				{children}
+				<WhatsAppButton />
 			</body>
 		</html>
 	)
