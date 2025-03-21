@@ -125,7 +125,7 @@ export default function DetailProductPage() {
 	return (
 		<>
 			<Head>
-				<title>Promo Bundle Kaos - 100K Dapat 2</title>
+				<title>Promo Bundle Kemeja - 100K Dapat 2</title>
 				<meta
 					name="description"
 					content="Dapatkan promo kaos keren! Hanya 100K dapat 2 pcs, bahan premium dan nyaman dipakai."
@@ -143,7 +143,7 @@ export default function DetailProductPage() {
 
 			<main className="@container mx-auto p-6 flex flex-col items-center gap-4 ">
 				<h1 className="text-3xl font-bold text-center uppercase bg-green-600 text-white p-4 rounded-lg">
-					🔥 Promo Spesial! 100K Dapat 2 Kaos 🔥
+					🔥 Promo Spesial! 100K Dapat 2 Kemeja 🔥
 				</h1>
 
 				<section className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 py-6">
