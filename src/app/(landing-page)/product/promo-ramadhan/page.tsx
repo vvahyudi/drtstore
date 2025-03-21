@@ -6,7 +6,7 @@ import { motion } from "motion/react"
 import SquareImageSlider from "@/components/SquareImageSlider"
 import Link from "next/link"
 import Image from "next/image"
-// import { MessageSquare } from "lucide-react"
+
 const products = [
 	{ name: "Promo Ramadhan Kemeja Murah", image: "/1.png" },
 	{ name: "Promo Ramadhan Kemeja Berkualitas", image: "/2.png" },
@@ -226,7 +226,7 @@ export default function DetailProductPage() {
 								{testi.name}
 							</p>
 							<p className="italic mt-2 text-gray-600 text-sm max-w-sm leading-relaxed">
-								{`"${testi.review}"`}
+								{testi.review}
 							</p>
 
 							{/* Rating Bintang */}
