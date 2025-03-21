@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-
+import Image from "next/image"
 interface ImageSliderProps {
 	images: string[]
 	autoPlayInterval?: number // in milliseconds
@@ -72,8 +72,10 @@ const SquareImageSlider: React.FC<ImageSliderProps> = ({
 								currentIndex === index ? "opacity-100" : "opacity-0"
 							}`}
 						>
-							<img
+							<Image
 								src={image}
+								height={200}
+								width={200}
 								alt={`Slide ${index + 1}`}
 								className="w-full h-full object-cover"
 							/>
@@ -117,8 +119,10 @@ const SquareImageSlider: React.FC<ImageSliderProps> = ({
 								: "border-gray-300 hover:border-gray-400"
 						}`}
 					>
-						<img
+						<Image
 							src={image}
+							height={100}
+							width={100}
 							alt={`Thumbnail ${index}`}
 							className="w-full h-full object-cover"
 						/>

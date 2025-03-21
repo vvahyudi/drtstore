@@ -5,7 +5,8 @@ import { useParams } from "next/navigation"
 import { motion } from "motion/react"
 import SquareImageSlider from "@/components/SquareImageSlider"
 import Link from "next/link"
-import { MessageSquare } from "lucide-react"
+import Image from "next/image"
+// import { MessageSquare } from "lucide-react"
 const products = [
 	{ name: "Promo Ramadhan Kemeja Murah", image: "/1.png" },
 	{ name: "Promo Ramadhan Kemeja Berkualitas", image: "/2.png" },
@@ -44,60 +45,50 @@ const testimonials = [
 		name: "Budi",
 		review:
 			"Diskonnya gila! Kemejanya premium tapi harganya tetap ramah di kantong!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Sari",
 		review:
 			"Modelnya stylish banget, cocok buat acara formal atau santai. Apalagi pas promo begini!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Dani",
 		review:
 			"Nggak nyesel beli! Kualitasnya top, cutting-an pas, dan promo ini bikin makin worth it!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Maya",
 		review:
 			"Bahan adem, jahitan rapi, dan diskonnya bikin happy. Langsung borong deh!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Rizky",
 		review:
 			"Beli pas promo, dapet harga miring tapi kualitas tetap juara! Recommended banget!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Tina",
 		review:
 			"Kemeja ini nyaman banget, bahkan setelah dicuci berkali-kali tetap bagus!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Arman",
 		review: "Potongan dan fit-nya pas banget, bikin tampilan makin elegan!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Lina",
 		review:
 			"Suka banget sama desainnya, simpel tapi tetap berkelas. Pas banget ada promo!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Joko",
 		review:
 			"Pesen satu, nyesel nggak beli dua! Kualitasnya di atas ekspektasi!",
-		image: "/placeholder.avif",
 	},
 	{
 		name: "Dewi",
 		review:
 			"Fast delivery, harga terjangkau, dan bahannya super nyaman. Mantap!",
-		image: "/placeholder.avif",
 	},
 ]
 
@@ -158,9 +149,11 @@ export default function DetailProductPage() {
 				<section className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 py-6">
 					{products.map((product, index) => (
 						<div key={index} className="text-center">
-							<img
+							<Image
 								src={product.image}
 								alt={product.name}
+								height={100}
+								width={100}
 								className="w-full rounded-lg shadow-lg"
 							/>
 							<p className="mt-2 font-semibold">{product.name}</p>
@@ -233,7 +226,7 @@ export default function DetailProductPage() {
 								{testi.name}
 							</p>
 							<p className="italic mt-2 text-gray-600 text-sm max-w-sm leading-relaxed">
-								"{testi.review}"
+								{`"${testi.review}"`}
 							</p>
 
 							{/* Rating Bintang */}
