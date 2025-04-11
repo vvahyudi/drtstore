@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingCart } from "lucide-react"
 import { useCart } from "@/components/cart-provider"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import {
 	AlertDialog,
@@ -18,15 +17,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-interface Product {
-	id: number
-	name: string
-	price: number
-	image: string
-	category: string
-	isNew: boolean
-}
+import { Product } from "@/types/api" // Import the consistent Product type
 
 const products: Product[] = [
 	{
@@ -36,6 +27,16 @@ const products: Product[] = [
 		image: "/kacamata.jpg?height=400&width=300",
 		category: "unisex",
 		isNew: true,
+		description: "Kacamata stylish dengan desain rimless yang elegan",
+		details: {
+			material: "Metal",
+			fit: "Regular",
+			care: "Bersihkan dengan kain microfiber",
+			origin: "Imported",
+		},
+		sizes: [],
+		colors: ["Black", "Silver", "Gold"],
+		images: ["/kacamata.jpg"],
 	},
 	{
 		id: 2,
@@ -44,6 +45,16 @@ const products: Product[] = [
 		image: "/iphone-case.jpg?height=400&width=300",
 		category: "accessories",
 		isNew: false,
+		description: "Case iPhone transparan dengan perlindungan premium",
+		details: {
+			material: "TPU",
+			fit: "Custom",
+			care: "Bersihkan dengan kain lembut",
+			origin: "Local",
+		},
+		sizes: [],
+		colors: ["Clear", "Black", "Blue"],
+		images: ["/iphone-case.jpg"],
 	},
 	{
 		id: 3,
@@ -52,6 +63,16 @@ const products: Product[] = [
 		image: "/sendal.jpg?height=400&width=300",
 		category: "unisex",
 		isNew: true,
+		description: "Sandal jepit klasik dengan kenyamanan maksimal",
+		details: {
+			material: "Rubber",
+			fit: "Regular",
+			care: "Cuci dengan air dan sabun ringan",
+			origin: "Local",
+		},
+		sizes: ["36", "37", "38", "39", "40", "41", "42"],
+		colors: ["Black", "Blue", "Red"],
+		images: ["/sendal.jpg"],
 	},
 	{
 		id: 4,
@@ -60,6 +81,16 @@ const products: Product[] = [
 		image: "/jamtangan.jpg?height=400&width=300",
 		category: "men",
 		isNew: false,
+		description: "Jam tangan quartz dengan desain elegan dan tahan air",
+		details: {
+			material: "Stainless Steel",
+			fit: "Regular",
+			care: "Hindari terkena air panas dan bahan kimia keras",
+			origin: "Japan",
+		},
+		sizes: [],
+		colors: ["Silver", "Gold", "Black"],
+		images: ["/jamtangan.jpg"],
 	},
 ]
 
@@ -96,7 +127,6 @@ interface ProductCardProps {
 
 function ProductCard({ product }: ProductCardProps) {
 	const { addToCart } = useCart()
-	// const router = useRouter()
 	const [showConfirmation, setShowConfirmation] = useState(false)
 	const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
@@ -111,6 +141,18 @@ function ProductCard({ product }: ProductCardProps) {
 
 	const handleAddToCart = (e: React.MouseEvent) => {
 		e.preventDefault()
+
+		// If product has sizes or colors but none selected, show an alert
+		// This is just a safety check, as ideally the product card wouldn't
+		// allow direct add-to-cart for products with options
+		if (
+			(product.sizes && product.sizes.length > 0 && !product.selectedSize) ||
+			(product.colors && product.colors.length > 0 && !product.selectedColor)
+		) {
+			alert("Please select size and color options before adding to cart")
+			return
+		}
+
 		addToCart(product)
 		setShowConfirmation(true)
 	}

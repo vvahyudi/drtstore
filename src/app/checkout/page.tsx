@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, FormEvent } from "react"
+import { useState, FormEvent, useEffect } from "react"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, ShieldCheck } from "lucide-react"
+import { ChevronLeft, CreditCard, ShieldCheck, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -24,11 +24,55 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCart } from "@/components/cart-provider"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Product } from "@/types/api" // Import consistent types
+
+// Define an interface for form data
+interface CheckoutFormData {
+	firstName: string
+	lastName: string
+	email: string
+	phone: string
+	address: string
+	apartment?: string
+	city: string
+	state: string
+	zip: string
+	paymentMethod: "card" | "paypal" | "cod"
+	shippingMethod: "standard" | "express"
+	// Card details (only needed for card payment)
+	cardName?: string
+	cardNumber?: string
+	expiry?: string
+	cvc?: string
+}
 
 export default function CheckoutPage() {
 	const { cartItems, subtotal, clearCart } = useCart()
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [isComplete, setIsComplete] = useState(false)
+	const [formData, setFormData] = useState<CheckoutFormData>({
+		firstName: "",
+		lastName: "",
+		email: "",
+		phone: "",
+		address: "",
+		apartment: "",
+		city: "",
+		state: "",
+		zip: "",
+		paymentMethod: "card",
+		shippingMethod: "standard",
+	})
+	const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+	const [serverError, setServerError] = useState<string | null>(null)
+
+	// Check if cart is empty on mount and after changes
+	useEffect(() => {
+		if ((!cartItems || cartItems.length === 0) && !isComplete) {
+			// You could redirect here if needed
+		}
+	}, [cartItems, isComplete])
 
 	if ((!cartItems || cartItems.length === 0) && !isComplete) {
 		return (
@@ -78,295 +122,143 @@ export default function CheckoutPage() {
 		)
 	}
 
-	const handleSubmit = (e: FormEvent) => {
-		e.preventDefault()
-		setIsSubmitting(true)
+	const validateForm = (): boolean => {
+		const errors: Record<string, string> = {};
+		
+		// Required fields validation
+		const requiredFields = ["firstName", "lastName", "email", "phone", "address", "city", "state", "zip"];
+		requiredFields.forEach(field => {
+			if (!formData[field as keyof CheckoutFormData]) {
+				errors[field] = "This field is required";
+			}
+		});
+		
+		// Email validation
+		if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+			errors.email = "Please enter a valid email address";
+		}
+		
+		// Phone validation - simple validation for demo
+		if (formData.phone && !/^\d{10,15}$/.test(formData.phone.replace(/\D/g, ''))) {
+			errors.phone = "Please enter a valid phone number";
+		}
+		
+		// Card validation (only if payment method is card)
+		if (formData.paymentMethod === "card") {
+			if (!formData.cardName) errors.cardName = "Card name is required";
+			if (!formData.cardNumber) errors.cardNumber = "Card number is required";
+			if (!formData.expiry) errors.expiry = "Expiry date is required";
+			if (!formData.cvc) errors.cvc = "CVC is required";
+			
+			// Additional card validations
+			if (formData.cardNumber && !/^\d{16}$/.test(formData.cardNumber.replace(/\s/g, ''))) {
+				errors.cardNumber = "Please enter a valid 16-digit card number";
+			}
+			
+			if (formData.expiry && !/^\d{2}\/\d{2}$/.test(formData.expiry)) {
+				errors.expiry = "Please use MM/YY format";
+			}
+			
+			if (formData.cvc && !/^\d{3,4}$/.test(formData.cvc)) {
+				errors.cvc = "CVC must be 3 or 4 digits";
+			}
+		}
+		
+		setFormErrors(errors);
+		return Object.keys(errors).length === 0;
+	};
 
-		// Simulate payment processing
-		setTimeout(() => {
-			setIsSubmitting(false)
-			setIsComplete(true)
-			clearCart()
-		}, 2000)
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = e.target;
+		setFormData(prev => ({ ...prev, [name]: value }));
+		
+		// Clear error for this field when user types
+		if (formErrors[name]) {
+			setFormErrors(prev => {
+				const newErrors = { ...prev };
+				delete newErrors[name];
+				return newErrors;
+			});
+		}
+	};
+
+	const handleSelectChange = (name: string, value: string) => {
+		setFormData(prev => ({ ...prev, [name]: value }));
+	};
+
+	const handleSubmit = async (e: FormEvent) => {
+		e.preventDefault();
+		setServerError(null);
+		
+		// Validate form
+		if (!validateForm()) {
+			// Scroll to the first error
+			const firstErrorField = Object.keys(formErrors)[0];
+			const element = document.querySelector(`[name="${firstErrorField}"]`);
+			if (element) {
+				element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}
+			return;
+		}
+		
+		setIsSubmitting(true);
+		
+		try {
+			// Prepare shipping address
+			const shippingAddress = {
+				address: formData.address,
+				apartment: formData.apartment,
+				city: formData.city,
+				state: formData.state,
+				postal_code: formData.zip,
+				country: "Indonesia" // Default for this example
+			};
+			
+			// Prepare order items
+			const items = cartItems.map(item => ({
+				id: item.id,
+				quantity: item.quantity || 1,
+				selectedSize: item.selectedSize,
+				selectedColor: item.selectedColor,
+				price: item.price
+			}));
+			
+			// In a real application, you would send this data to your API
+			// const response = await fetch('/api/orders', {
+			//   method: 'POST',
+			//   headers: { 'Content-Type': 'application/json' },
+			//   body: JSON.stringify({
+			//     items,
+			//     shippingAddress,
+			//     totalAmount: subtotal + (formData.shippingMethod === 'express' ? 9.99 : 0),
+			//     paymentMethod: formData.paymentMethod,
+			//     customer: {
+			//       firstName: formData.firstName,
+			//       lastName: formData.lastName,
+			//       email: formData.email,
+			//       phone: formData.phone
+			//     }
+			//   })
+			// });
+			
+			// Simulate API call delay
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			
+			// Simulate successful order
+			// if (!response.ok) {
+			//   throw new Error('Failed to create order. Please try again.');
+			// }
+			
+			// Clear cart and show completion screen
+			clearCart();
+			setIsComplete(true);
+			
+		} catch (error) {
+			console.error('Checkout error:', error);
+			setServerError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
+		} finally {
+			setIsSubmitting(false);
+		}
 	}
-
-	return (
-		<div className="container px-4 py-12 mx-auto">
-			<div className="flex items-center mb-8">
-				<Button variant="ghost" size="sm" asChild>
-					<Link href="/cart">
-						<ChevronLeft className="h-4 w-4 mr-1" />
-						Back to Cart
-					</Link>
-				</Button>
-			</div>
-
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-				<div className="lg:col-span-2">
-					<h1 className="text-2xl font-bold mb-6">Checkout</h1>
-
-					<form onSubmit={handleSubmit}>
-						<div className="space-y-8">
-							<div>
-								<h2 className="text-lg font-medium mb-4">
-									Contact Information
-								</h2>
-								<div className="space-y-4">
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="firstName">First Name</Label>
-											<Input id="firstName" required />
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="lastName">Last Name</Label>
-											<Input id="lastName" required />
-										</div>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="email">Email</Label>
-										<Input id="email" type="email" required />
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="phone">Phone</Label>
-										<Input id="phone" type="tel" required />
-									</div>
-								</div>
-							</div>
-
-							<Separator />
-
-							<div>
-								<h2 className="text-lg font-medium mb-4">Shipping Address</h2>
-								<div className="space-y-4">
-									<div className="space-y-2">
-										<Label htmlFor="address">Address</Label>
-										<Input id="address" required />
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="apartment">
-											Apartment, suite, etc. (optional)
-										</Label>
-										<Input id="apartment" />
-									</div>
-									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="city">City</Label>
-											<Input id="city" required />
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="state">State</Label>
-											<Select defaultValue="">
-												<SelectTrigger>
-													<SelectValue placeholder="Select state" />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="ca">California</SelectItem>
-													<SelectItem value="ny">New York</SelectItem>
-													<SelectItem value="tx">Texas</SelectItem>
-													<SelectItem value="fl">Florida</SelectItem>
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="zip">ZIP Code</Label>
-											<Input id="zip" required />
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<Separator />
-
-							<div>
-								<h2 className="text-lg font-medium mb-4">Payment Method</h2>
-								<Tabs defaultValue="card">
-									<TabsList className="grid w-full grid-cols-3">
-										<TabsTrigger value="card">Credit Card</TabsTrigger>
-										<TabsTrigger value="paypal">PayPal</TabsTrigger>
-										<TabsTrigger value="cod">Cash on Delivery</TabsTrigger>
-									</TabsList>
-									<TabsContent value="card" className="space-y-4 pt-4">
-										<div className="space-y-2">
-											<Label htmlFor="cardName">Name on Card</Label>
-											<Input id="cardName" required />
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="cardNumber">Card Number</Label>
-											<div className="relative">
-												<Input
-													id="cardNumber"
-													placeholder="1234 5678 9012 3456"
-													required
-												/>
-												<CreditCard className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground" />
-											</div>
-										</div>
-										<div className="grid grid-cols-2 gap-4">
-											<div className="space-y-2">
-												<Label htmlFor="expiry">Expiry Date</Label>
-												<Input id="expiry" placeholder="MM/YY" required />
-											</div>
-											<div className="space-y-2">
-												<Label htmlFor="cvc">CVC</Label>
-												<Input id="cvc" placeholder="123" required />
-											</div>
-										</div>
-									</TabsContent>
-									<TabsContent value="paypal" className="pt-4">
-										<div className="flex flex-col items-center justify-center py-8 text-center">
-											<p className="mb-4">
-												You will be redirected to PayPal to complete your
-												purchase securely.
-											</p>
-											<Button type="button" className="w-full">
-												Continue with PayPal
-											</Button>
-										</div>
-									</TabsContent>
-									<TabsContent value="cod" className="pt-4">
-										<div className="flex flex-col space-y-4">
-											<div className="bg-muted p-4 rounded-lg">
-												<h3 className="font-medium mb-2">Cash on Delivery</h3>
-												<p className="text-sm text-muted-foreground">
-													Pay with cash when your order is delivered to your
-													doorstep. A small COD fee may apply.
-												</p>
-											</div>
-											<div className="flex items-center space-x-2">
-												<div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-													<ShieldCheck className="h-5 w-5 text-primary" />
-												</div>
-												<div className="text-sm">
-													<p className="font-medium">Secure and convenient</p>
-													<p className="text-muted-foreground">
-														No need to share payment details online
-													</p>
-												</div>
-											</div>
-											<div className="flex items-center space-x-2">
-												<div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-													<CreditCard className="h-5 w-5 text-primary" />
-												</div>
-												<div className="text-sm">
-													<p className="font-medium">
-														Pay only when you receive
-													</p>
-													<p className="text-muted-foreground">
-														Inspect your items before payment
-													</p>
-												</div>
-											</div>
-										</div>
-									</TabsContent>
-								</Tabs>
-							</div>
-
-							<Separator />
-
-							<div>
-								<h2 className="text-lg font-medium mb-4">Shipping Method</h2>
-								<RadioGroup defaultValue="standard" className="space-y-3">
-									<div className="flex items-center space-x-3 space-y-0">
-										<RadioGroupItem value="standard" id="standard" />
-										<Label htmlFor="standard" className="flex-1">
-											<div className="flex justify-between">
-												<span>Standard Shipping</span>
-												<span>Free</span>
-											</div>
-											<span className="text-sm text-muted-foreground">
-												Delivery in 5-7 business days
-											</span>
-										</Label>
-									</div>
-									<div className="flex items-center space-x-3 space-y-0">
-										<RadioGroupItem value="express" id="express" />
-										<Label htmlFor="express" className="flex-1">
-											<div className="flex justify-between">
-												<span>Express Shipping</span>
-												<span>$9.99</span>
-											</div>
-											<span className="text-sm text-muted-foreground">
-												Delivery in 2-3 business days
-											</span>
-										</Label>
-									</div>
-								</RadioGroup>
-							</div>
-
-							<div className="lg:hidden">
-								<OrderSummary cartItems={cartItems} subtotal={subtotal} />
-							</div>
-
-							<div className="flex justify-end">
-								<Button type="submit" size="lg" disabled={isSubmitting}>
-									{isSubmitting ? "Processing..." : "Place Order"}
-								</Button>
-							</div>
-						</div>
-					</form>
-				</div>
-
-				<div className="hidden lg:block">
-					<OrderSummary cartItems={cartItems} subtotal={subtotal} />
-				</div>
-			</div>
-		</div>
-	)
-}
-
-// Define the type for cart items based on what we know from our cart-provider.tsx
-interface OrderSummaryProps {
-	cartItems: {
-		id: number
-		name: string
-		price: number
-		quantity?: number
-		[key: string]: any // Allow additional properties
-	}[]
-	subtotal: number
-}
-
-function OrderSummary({ cartItems, subtotal }: OrderSummaryProps) {
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Order Summary</CardTitle>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				<div className="space-y-2">
-					{cartItems.map((item) => (
-						<div key={item.id} className="flex justify-between">
-							<div className="flex items-center gap-2">
-								<span className="text-sm font-medium">
-									{item.quantity || 1} ×
-								</span>
-								<span className="text-sm">{item.name}</span>
-							</div>
-							<span className="text-sm font-medium">
-								${(item.price * (item.quantity || 1)).toFixed(2)}
-							</span>
-						</div>
-					))}
-				</div>
-				<Separator />
-				<div className="flex justify-between">
-					<span>Subtotal</span>
-					<span>${subtotal.toFixed(2)}</span>
-				</div>
-				<div className="flex justify-between">
-					<span>Shipping</span>
-					<span>Free</span>
-				</div>
-				<div className="flex justify-between">
-					<span>Tax</span>
-					<span>Calculated at checkout</span>
-				</div>
-				<Separator />
-				<div className="flex justify-between font-bold">
-					<span>Total</span>
-					<span>${subtotal.toFixed(2)}</span>
-				</div>
-			</CardContent>
-		</Card>
-	)
-}
+	
+		

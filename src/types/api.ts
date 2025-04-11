@@ -33,6 +33,9 @@ export interface Product {
 	sizes: string[]
 	colors: string[]
 	images: string[]
+	quantity?: number
+	selectedSize?: string
+	selectedColor?: string
 }
 
 // Order types
