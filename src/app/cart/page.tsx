@@ -18,14 +18,14 @@ export default function CartPage() {
 	const { cartItems, removeFromCart, updateQuantity, subtotal, clearCart } =
 		useCart()
 
-	if (cartItems.length === 0) {
+	if (!cartItems || cartItems.length === 0) {
 		return (
 			<div className="container px-4 py-12 mx-auto">
 				<div className="flex flex-col items-center justify-center py-12 text-center">
 					<ShoppingBag className="h-16 w-16 text-muted-foreground mb-4" />
 					<h1 className="text-2xl font-bold">Your cart is empty</h1>
 					<p className="text-muted-foreground mt-2">
-						Looks like you haven&aposs;t added anything to your cart yet.
+						Looks like you haven&apos;t added anything to your cart yet.
 					</p>
 					<Button asChild className="mt-6">
 						<Link href="/products">Continue Shopping</Link>
@@ -33,6 +33,15 @@ export default function CartPage() {
 				</div>
 			</div>
 		)
+	}
+
+	const handleRemoveItem = (itemId: number) => {
+		removeFromCart(itemId)
+	}
+
+	const handleUpdateQuantity = (itemId: number, newQuantity: number) => {
+		if (newQuantity < 1) return
+		updateQuantity(itemId, newQuantity)
 	}
 
 	return (
@@ -51,16 +60,16 @@ export default function CartPage() {
 											alt={item.name}
 											fill
 											className="object-cover"
+											sizes="(max-width: 768px) 100vw, 120px"
+											priority={false}
 										/>
 									</div>
 									<div className="p-4 flex-1 flex flex-col sm:flex-row sm:items-center">
 										<div className="flex-1">
 											<h3 className="font-medium">{item.name}</h3>
 											<p className="text-sm text-muted-foreground mt-1">
-												{item.selectedSize && `Size: ${item.selectedSize}`}
-												{item.selectedColor && `, Color: ${item.selectedColor}`}
+												${item.price.toFixed(2)}
 											</p>
-											<p className="font-bold mt-1">${item.price.toFixed(2)}</p>
 										</div>
 										<div className="flex items-center mt-4 sm:mt-0">
 											<Button
@@ -68,8 +77,12 @@ export default function CartPage() {
 												size="icon"
 												className="h-8 w-8"
 												onClick={() =>
-													updateQuantity(item.id, (item.quantity || 1) - 1)
+													handleUpdateQuantity(
+														item.id,
+														Math.max(1, (item.quantity || 1) - 1),
+													)
 												}
+												disabled={(item.quantity || 1) <= 1}
 											>
 												<Minus className="h-3 w-3" />
 											</Button>
@@ -81,7 +94,10 @@ export default function CartPage() {
 												size="icon"
 												className="h-8 w-8"
 												onClick={() =>
-													updateQuantity(item.id, (item.quantity || 1) + 1)
+													handleUpdateQuantity(
+														item.id,
+														(item.quantity || 1) + 1,
+													)
 												}
 											>
 												<Plus className="h-3 w-3" />
@@ -90,7 +106,7 @@ export default function CartPage() {
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8 ml-2"
-												onClick={() => removeFromCart(item.id)}
+												onClick={() => handleRemoveItem(item.id)}
 											>
 												<Trash className="h-4 w-4" />
 											</Button>
