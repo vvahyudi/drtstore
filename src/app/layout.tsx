@@ -1,8 +1,12 @@
+import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Roboto_Serif } from "next/font/google"
+
 import "@/styles/globals.css"
-import Navbar from "@/components/Navbar"
-import WhatsAppButton from "@/components/WhatsAppButton"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
+import { CartProvider } from "@/components/cart-provider"
+
 const geistSans = Geist({
 	variable: "--font-geist-sans",
 	subsets: ["latin"],
@@ -29,11 +33,15 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body
-				className={`${geistSans.variable} ${geistMono.variable} ${robotoSerif.variable} antialiased`}
+				className={`${geistSans.variable} ${geistMono.variable} ${robotoSerif.variable} antialiased mx-auto p-8 w-full`}
 			>
-				<Navbar />
-				{children}
-				<WhatsAppButton />
+				<CartProvider>
+					<div className="flex flex-col  min-h-screen">
+						<Header />
+						<main className="flex-1">{children}</main>
+						<Footer />
+					</div>
+				</CartProvider>
 			</body>
 		</html>
 	)
