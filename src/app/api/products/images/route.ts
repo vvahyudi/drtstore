@@ -10,23 +10,34 @@ export async function POST(request: NextRequest) {
 		// - is_primary: boolean (optional)
 
 		const formData = await request.formData()
-		const productId = parseInt(formData.get("product_id") as string)
-		const file = formData.get("image") as File
-		const isPrimary = formData.get("is_primary") === "true"
+		const productIdValue = formData.get("product_id")
+		const file = formData.get("image")
+		const isPrimaryValue = formData.get("is_primary")
 
-		if (!productId || isNaN(productId)) {
+		if (!productIdValue || typeof productIdValue !== "string") {
 			return NextResponse.json(
 				{ error: "Valid product_id is required" },
 				{ status: 400 },
 			)
 		}
 
-		if (!file) {
+		const productId = parseInt(productIdValue)
+
+		if (isNaN(productId)) {
+			return NextResponse.json(
+				{ error: "product_id must be a valid number" },
+				{ status: 400 },
+			)
+		}
+
+		if (!file || !(file instanceof File)) {
 			return NextResponse.json(
 				{ error: "Image file is required" },
 				{ status: 400 },
 			)
 		}
+
+		const isPrimary = isPrimaryValue === "true"
 
 		// Check if product exists
 		const { data: product, error: productError } = await supabase
@@ -63,16 +74,18 @@ export async function POST(request: NextRequest) {
 				image_url: uploadResult.secure_url,
 				cloudinary_id: uploadResult.public_id,
 				is_primary: isPrimary,
-				width: uploadResult.width,
-				height: uploadResult.height,
-				format: uploadResult.format,
+				width: uploadResult.width || 0,
+				height: uploadResult.height || 0,
+				format: uploadResult.format || "",
 			})
 			.select()
 			.single()
 
 		if (imageError) {
 			// If there was an error storing the reference, delete the uploaded image
-			await deleteMedia(uploadResult.public_id, uploadResult.resource_type)
+			await deleteMedia(uploadResult.public_id, {
+				resource_type: uploadResult.resource_type,
+			})
 
 			return NextResponse.json({ error: imageError.message }, { status: 400 })
 		}
@@ -96,11 +109,20 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url)
-		const imageId = parseInt(searchParams.get("id") || "")
+		const imageIdValue = searchParams.get("id")
+
+		if (!imageIdValue) {
+			return NextResponse.json(
+				{ error: "Valid image ID is required" },
+				{ status: 400 },
+			)
+		}
+
+		const imageId = parseInt(imageIdValue)
 
 		if (isNaN(imageId)) {
 			return NextResponse.json(
-				{ error: "Valid image ID is required" },
+				{ error: "Image ID must be a valid number" },
 				{ status: 400 },
 			)
 		}
@@ -119,9 +141,16 @@ export async function DELETE(request: NextRequest) {
 			)
 		}
 
+		if (!image || !image.cloudinary_id) {
+			return NextResponse.json(
+				{ error: "Image data is invalid or incomplete" },
+				{ status: 400 },
+			)
+		}
+
 		// Delete image from Cloudinary
 		const resourceType = image.image_url.includes("video") ? "video" : "image"
-		await deleteMedia(image.cloudinary_id, resourceType)
+		await deleteMedia(image.cloudinary_id, { resource_type: resourceType })
 
 		// Delete image record from Supabase
 		const { error: deleteError } = await supabase

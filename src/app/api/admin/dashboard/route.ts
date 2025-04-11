@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import { auth } from "@/lib/auth"
 
+type OrderStatus = "pending" | "processing" | "completed" | "cancelled"
+type OrderStatusCounts = Record<OrderStatus, number> & { total: number }
+
 export async function GET(request: NextRequest) {
 	try {
 		// Authenticate admin user
@@ -75,7 +78,7 @@ export async function GET(request: NextRequest) {
 					`
           product_id,
           quantity,
-          products!inner(name)
+          products:products(id, name)
         `,
 				)
 				.order("quantity", { ascending: false })
@@ -107,7 +110,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		// Process order status counts
-		const orderStatusCounts = {
+		const orderStatusCounts: OrderStatusCounts = {
 			pending: 0,
 			processing: 0,
 			completed: 0,
@@ -115,21 +118,25 @@ export async function GET(request: NextRequest) {
 			total: ordersResult.count || 0,
 		}
 
-		ordersResult.data?.forEach((order) => {
-			const status = order.status as keyof typeof orderStatusCounts
-			if (status in orderStatusCounts) {
-				orderStatusCounts[status]++
-			}
-		})
+		if (ordersResult.data) {
+			ordersResult.data.forEach((order) => {
+				const status = order.status as OrderStatus
+				if (status in orderStatusCounts) {
+					orderStatusCounts[status]++
+				}
+			})
+		}
 
 		// Process product categories
-		const categoryStats = productStatsResult.data?.reduce(
-			(acc: Record<string, number>, item) => {
-				acc[item.category] = (acc[item.category] || 0) + 1
-				return acc
-			},
-			{},
-		)
+		const categoryStats: Record<string, number> = {}
+
+		if (productStatsResult.data) {
+			productStatsResult.data.forEach((item) => {
+				if (item.category) {
+					categoryStats[item.category] = (categoryStats[item.category] || 0) + 1
+				}
+			})
+		}
 
 		// Process monthly revenue
 		const monthlyRevenue = processMonthlyRevenue(revenueResult.data || [])
@@ -138,7 +145,6 @@ export async function GET(request: NextRequest) {
 		const topProducts =
 			topProductsResult.data?.map((item) => ({
 				id: item.product_id,
-				name: item.products?.name,
 				totalSold: item.quantity,
 			})) || []
 
@@ -192,14 +198,16 @@ function processMonthlyRevenue(orders: any[]) {
 
 	// Fill in revenue data
 	orders.forEach((order) => {
-		const orderDate = new Date(order.created_at)
-		const monthYear = `${orderDate.toLocaleString("default", {
-			month: "short",
-		})} ${orderDate.getFullYear()}`
+		if (order.created_at) {
+			const orderDate = new Date(order.created_at)
+			const monthYear = `${orderDate.toLocaleString("default", {
+				month: "short",
+			})} ${orderDate.getFullYear()}`
 
-		// Only include orders from the last 6 months
-		if (orderDate >= sixMonthsAgo && monthlyData[monthYear] !== undefined) {
-			monthlyData[monthYear] += order.total_amount || 0
+			// Only include orders from the last 6 months
+			if (orderDate >= sixMonthsAgo && monthlyData[monthYear] !== undefined) {
+				monthlyData[monthYear] += order.total_amount || 0
+			}
 		}
 	})
 
