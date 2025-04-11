@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { SimpleWhatsAppButton } from "./whatsapp-button"
 
 export function HeroSection() {
-	const phoneNumber = "6281234567890"
+	const phoneNumber = "628175753345"
 	const defaultMessage = "Halo, saya tertarik dengan produk di toko Anda"
 
 	return (
