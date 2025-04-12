@@ -3,6 +3,14 @@ export interface ApiResponse<T> {
 	data?: T
 	error?: string
 	message?: string
+	pagination?: Pagination
+}
+
+export interface Pagination {
+	total: number
+	page: number
+	limit: number
+	totalPages: number
 }
 
 // Product types
@@ -12,22 +20,28 @@ export interface ProductImage {
 	image_url: string
 	cloudinary_id: string
 	is_primary: boolean
+	width?: number
+	height?: number
+	format?: string
 }
 
 export interface ProductDetails {
-	material: string
-	fit: string
-	care: string
-	origin: string
+	material?: string
+	fit?: string
+	care?: string
+	origin?: string
 }
 
 export interface Product {
 	id: number
 	name: string
+	slug: string
 	price: number
 	image: string
 	category: string
 	isNew: boolean
+	isFeatured?: boolean
+	stock?: number
 	description: string
 	details: ProductDetails
 	sizes: string[]
@@ -38,55 +52,27 @@ export interface Product {
 	selectedColor?: string
 }
 
-// Order types
-export interface OrderItem {
-	id: number
-	order_id: number
-	product_id: number
-	product: Product
-	quantity: number
-	size?: string
-	color?: string
-	price: number
-}
-
-export interface ShippingAddress {
-	address: string
-	apartment?: string
-	city: string
-	state: string
-	postal_code: string
-	country: string
-}
-
-export interface Order {
-	id: number
-	user_id: string
-	status: "pending" | "processing" | "completed" | "cancelled"
-	total_amount: number
-	shipping_address: ShippingAddress
-	payment_method: string
-	created_at: string
-	items: OrderItem[]
-}
-
-// API request types
-export interface CreateOrderRequest {
-	items: Array<{
-		id: number
-		quantity: number
-		selectedSize?: string
-		selectedColor?: string
-		price: number
-	}>
-	shippingAddress: ShippingAddress
-	totalAmount: number
-	paymentMethod: string
-}
-
-export interface ProductFilterParams {
+// Filter and search types
+export interface ProductFilter {
 	category?: string
 	isNew?: boolean
-	limit?: number
-	offset?: number
+	isFeatured?: boolean
+	minPrice?: number
+	maxPrice?: number
+	sizes?: string[]
+	colors?: string[]
+	search?: string
+}
+
+// Cart types
+export interface CartItem extends Product {
+	quantity: number
+	selectedSize?: string
+	selectedColor?: string
+}
+
+export interface CartSummary {
+	subtotal: number
+	shipping: number
+	total: number
 }

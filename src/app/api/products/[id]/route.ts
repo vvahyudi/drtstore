@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { generateSlug } from "@/lib/utils"
 
 export async function GET(
 	request: NextRequest,
@@ -33,16 +34,19 @@ export async function GET(
 			return NextResponse.json({ error: error.message }, { status: 400 })
 		}
 
-		// Transform data to match your frontend structure
+		// Transform data to match the frontend structure
 		const formattedProduct = {
 			id: product.id,
 			name: product.name,
+			slug: product.slug,
 			price: product.price,
 			image:
 				product.images.find((img: any) => img.is_primary)?.image_url ||
-				product.images[0]?.image_url,
+				(product.images.length > 0 ? product.images[0]?.image_url : null),
 			category: product.category,
 			isNew: product.is_new,
+			isFeatured: product.is_featured,
+			stock: product.stock,
 			description: product.description,
 			details: product.details,
 			sizes: product.sizes,
@@ -73,19 +77,30 @@ export async function PUT(
 
 		const body = await request.json()
 
+		// Generate slug if not provided
+		if (!body.slug && body.name) {
+			body.slug = generateSlug(body.name)
+		}
+
+		// Format data for Supabase
+		const productData = {
+			...(body.name && { name: body.name }),
+			...(body.slug && { slug: body.slug }),
+			...(body.price !== undefined && { price: body.price }),
+			...(body.description !== undefined && { description: body.description }),
+			...(body.category && { category: body.category }),
+			...(body.isNew !== undefined && { is_new: body.isNew }),
+			...(body.isFeatured !== undefined && { is_featured: body.isFeatured }),
+			...(body.stock !== undefined && { stock: body.stock }),
+			...(body.details && { details: body.details }),
+			...(body.sizes && { sizes: body.sizes }),
+			...(body.colors && { colors: body.colors }),
+		}
+
 		// Update product in database
 		const { data: product, error } = await supabase
 			.from("products")
-			.update({
-				name: body.name,
-				price: body.price,
-				description: body.description,
-				category: body.category,
-				is_new: body.isNew,
-				details: body.details,
-				sizes: body.sizes,
-				colors: body.colors,
-			})
+			.update(productData)
 			.eq("id", id)
 			.select()
 			.single()
@@ -94,9 +109,35 @@ export async function PUT(
 			return NextResponse.json({ error: error.message }, { status: 400 })
 		}
 
+		// Fetch the images to include in the response
+		const { data: imageData } = await supabase
+			.from("product_images")
+			.select("*")
+			.eq("product_id", id)
+
+		// Transform the product data for response
+		const transformedProduct = {
+			id: product.id,
+			name: product.name,
+			slug: product.slug,
+			price: product.price,
+			description: product.description,
+			category: product.category,
+			isNew: product.is_new,
+			isFeatured: product.is_featured,
+			stock: product.stock,
+			details: product.details,
+			sizes: product.sizes,
+			colors: product.colors,
+			images: imageData?.map((img) => img.image_url) || [],
+			image:
+				imageData?.find((img) => img.is_primary)?.image_url ||
+				(imageData && imageData.length > 0 ? imageData[0].image_url : ""),
+		}
+
 		return NextResponse.json({
 			message: "Product updated successfully",
-			product,
+			product: transformedProduct,
 		})
 	} catch (error) {
 		console.error("Error updating product:", error)
@@ -131,7 +172,7 @@ export async function DELETE(
 			return NextResponse.json({ error: error.message }, { status: 400 })
 		}
 
-		// Return the Cloudinary IDs so they can be deleted in a separate operation
+		// Return the Cloudinary IDs so they can be deleted in a separate operation if needed
 		return NextResponse.json({
 			message: "Product deleted successfully",
 			cloudinaryIds: images?.map((img) => img.cloudinary_id) || [],
