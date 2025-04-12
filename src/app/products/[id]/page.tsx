@@ -4,13 +4,14 @@ import { useState } from "react"
 import { use } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronRight, Minus, Plus, ShoppingCart, Send } from "lucide-react"
+import { ChevronRight, Minus, Plus, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCart } from "@/components/cart-provider"
 import { SimpleWhatsAppButton } from "@/components/whatsapp-button"
 import { Product } from "@/types/api" // Import the consistent Product type
+
 // Mock product data - in a real app, you would fetch this from an API
 const products: Product[] = [
 	{
@@ -92,7 +93,6 @@ export default function ProductPage({
 }: {
 	params: Promise<{ id: string }>
 }) {
-	// First, let's define proper types at the top of your file
 	type Product = {
 		id: number
 		name: string
@@ -140,19 +140,6 @@ export default function ProductPage({
 				</Button>
 			</div>
 		)
-	}
-
-	const handleAddToCart = () => {
-		if (!selectedSize || !selectedColor) return
-
-		const cartItem: CartItem = {
-			...product,
-			quantity,
-			selectedSize,
-			selectedColor,
-		}
-
-		addToCart(cartItem)
 	}
 
 	// Create the WhatsApp message for direct purchase
@@ -294,17 +281,7 @@ export default function ProductPage({
 						</div>
 					</div>
 
-					<div className="flex flex-col gap-4 sm:flex-row">
-						<Button
-							size="lg"
-							className="flex-1"
-							disabled={!selectedSize || !selectedColor}
-							onClick={handleAddToCart}
-						>
-							<ShoppingCart className="h-5 w-5 mr-2" />
-							Add to Cart
-						</Button>
-
+					<div className="flex flex-col gap-4">
 						<SimpleWhatsAppButton
 							phoneNumber={phoneNumber}
 							message={createWhatsAppMessage() || ""}

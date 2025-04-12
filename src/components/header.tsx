@@ -2,12 +2,11 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useState, useMemo } from "react"
-import { Menu, Search, ShoppingCart, User, X } from "lucide-react"
+import { useState } from "react"
+import { Menu, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useCart } from "@/components/cart-provider"
 
 const navItems = [
 	{ href: "/", label: "Home" },
@@ -93,8 +92,6 @@ function SearchBar({
 
 export function Header() {
 	const [isSearchOpen, setIsSearchOpen] = useState(false)
-	const { cartItems } = useCart()
-	const cartItemCount = useMemo(() => cartItems.length, [cartItems])
 
 	return (
 		<header className="sticky top-0 z-50 w-full border-b bg-background">
@@ -113,23 +110,6 @@ export function Header() {
 						onClose={() => setIsSearchOpen(false)}
 						onOpen={() => setIsSearchOpen(true)}
 					/>
-
-					<Button variant="ghost" size="icon">
-						<User className="h-5 w-5" />
-						<span className="sr-only">Account</span>
-					</Button>
-
-					<Link href="/cart">
-						<Button variant="ghost" size="icon" className="relative">
-							<ShoppingCart className="h-5 w-5" />
-							{cartItemCount > 0 && (
-								<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-									{cartItemCount}
-								</span>
-							)}
-							<span className="sr-only">Cart</span>
-						</Button>
-					</Link>
 				</div>
 			</div>
 		</header>

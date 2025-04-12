@@ -17,7 +17,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Product } from "@/types/api" // Import the consistent Product type
+import { Product } from "@/types/api"
+import { useRouter } from "next/navigation"
 
 const products: Product[] = [
 	{
@@ -129,7 +130,8 @@ function ProductCard({ product }: ProductCardProps) {
 	const { addToCart } = useCart()
 	const [showConfirmation, setShowConfirmation] = useState(false)
 	const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-	const phoneNumber = "628175753345" // Your WhatsApp number
+	const phoneNumber = "628175753345"
+	const router = useRouter()
 
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat("id-ID", {
@@ -143,13 +145,11 @@ function ProductCard({ product }: ProductCardProps) {
 	const handleAddToCart = (e: React.MouseEvent) => {
 		e.preventDefault()
 
-		// For products without options, add directly to cart
-		// For products with options, redirect to product page
 		if (
 			(product.sizes && product.sizes.length > 0) ||
 			(product.colors && product.colors.length > 0)
 		) {
-			window.location.href = `/products/${product.id}`
+			router.push(`/products/${product.id}`)
 			return
 		}
 
@@ -158,7 +158,6 @@ function ProductCard({ product }: ProductCardProps) {
 			quantity: 1,
 		})
 
-		// Show confirmation dialog after adding to cart
 		setShowConfirmation(true)
 	}
 
@@ -239,7 +238,6 @@ function ProductCard({ product }: ProductCardProps) {
 				</CardFooter>
 			</Card>
 
-			{/* Dialog Confirmation for Add to Cart */}
 			<AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
