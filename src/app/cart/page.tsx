@@ -13,10 +13,14 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useCart } from "@/components/cart-provider"
+import { WhatsAppCheckout } from "@/components/whatsapp-checkout"
 
 export default function CartPage() {
 	const { cartItems, removeFromCart, updateQuantity, subtotal, clearCart } =
 		useCart()
+
+	// Replace with your WhatsApp phone number (without '+' symbol)
+	const phoneNumber = "628175753345"
 
 	if (!cartItems || cartItems.length === 0) {
 		return (
@@ -44,6 +48,16 @@ export default function CartPage() {
 		updateQuantity(itemId, newQuantity)
 	}
 
+	// Format price in IDR
+	const formatPrice = (price: number) => {
+		return new Intl.NumberFormat("id-ID", {
+			style: "currency",
+			currency: "IDR",
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(price)
+	}
+
 	return (
 		<div className="container px-4 py-12 mx-auto">
 			<h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
@@ -68,8 +82,18 @@ export default function CartPage() {
 										<div className="flex-1">
 											<h3 className="font-medium">{item.name}</h3>
 											<p className="text-sm text-muted-foreground mt-1">
-												${item.price.toFixed(2)}
+												{formatPrice(item.price)}
 											</p>
+											{item.selectedSize && (
+												<p className="text-sm text-muted-foreground">
+													Size: {item.selectedSize}
+												</p>
+											)}
+											{item.selectedColor && (
+												<p className="text-sm text-muted-foreground">
+													Color: {item.selectedColor}
+												</p>
+											)}
 										</div>
 										<div className="flex items-center mt-4 sm:mt-0">
 											<Button
@@ -135,26 +159,24 @@ export default function CartPage() {
 						<CardContent className="space-y-4">
 							<div className="flex justify-between">
 								<span>Subtotal</span>
-								<span>${subtotal.toFixed(2)}</span>
+								<span>{formatPrice(subtotal)}</span>
 							</div>
 							<div className="flex justify-between">
 								<span>Shipping</span>
-								<span>Calculated at checkout</span>
+								<span>Calculated during checkout</span>
 							</div>
 							<div className="flex justify-between">
 								<span>Tax</span>
-								<span>Calculated at checkout</span>
+								<span>Calculated during checkout</span>
 							</div>
 							<Separator />
 							<div className="flex justify-between font-bold">
 								<span>Total</span>
-								<span>${subtotal.toFixed(2)}</span>
+								<span>{formatPrice(subtotal)}</span>
 							</div>
 						</CardContent>
 						<CardFooter>
-							<Button asChild className="w-full">
-								<Link href="/checkout">Proceed to Checkout</Link>
-							</Button>
+							<WhatsAppCheckout phoneNumber={phoneNumber} className="w-full" />
 						</CardFooter>
 					</Card>
 				</div>

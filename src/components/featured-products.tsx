@@ -4,7 +4,7 @@ import Image from "next/image"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart } from "lucide-react"
+import { ShoppingCart, Send } from "lucide-react"
 import { useCart } from "@/components/cart-provider"
 import { useState } from "react"
 import {
@@ -129,6 +129,7 @@ function ProductCard({ product }: ProductCardProps) {
 	const { addToCart } = useCart()
 	const [showConfirmation, setShowConfirmation] = useState(false)
 	const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+	const phoneNumber = "628175753345" // Your WhatsApp number
 
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat("id-ID", {
@@ -142,37 +143,37 @@ function ProductCard({ product }: ProductCardProps) {
 	const handleAddToCart = (e: React.MouseEvent) => {
 		e.preventDefault()
 
-		// If product has sizes or colors but none selected, show an alert
-		// This is just a safety check, as ideally the product card wouldn't
-		// allow direct add-to-cart for products with options
+		// For products without options, add directly to cart
+		// For products with options, redirect to product page
 		if (
-			(product.sizes && product.sizes.length > 0 && !product.selectedSize) ||
-			(product.colors && product.colors.length > 0 && !product.selectedColor)
+			(product.sizes && product.sizes.length > 0) ||
+			(product.colors && product.colors.length > 0)
 		) {
-			alert("Please select size and color options before adding to cart")
+			window.location.href = `/products/${product.id}`
 			return
 		}
 
-		addToCart(product)
+		addToCart({
+			...product,
+			quantity: 1,
+		})
+
+		// Show confirmation dialog after adding to cart
 		setShowConfirmation(true)
 	}
 
-	const handleConfirm = () => {
+	const handleWhatsAppInquiry = () => {
 		const productUrl = `${baseUrl}/products/${product.id}`
-		const message = `Halo, saya ingin membeli produk:\n\n*${
+		const message = `Halo, saya tertarik dengan produk:\n\n*${
 			product.name
 		}*\nHarga: ${formatPrice(
 			product.price,
 		)}\n\nLink produk: ${productUrl}\n\nApakah produk ini masih tersedia?`
-		const encodedMessage = encodeURIComponent(message)
-		const phoneNumber = "628175753345" // Ganti dengan nomor WhatsApp Anda
 
-		window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, "_blank")
-		setShowConfirmation(false)
-	}
-
-	const handleCancel = () => {
-		setShowConfirmation(false)
+		const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
+			message,
+		)}`
+		window.open(whatsappUrl, "_blank")
 	}
 
 	return (
@@ -215,39 +216,47 @@ function ProductCard({ product }: ProductCardProps) {
 						</p>
 					</CardContent>
 				</Link>
-				<CardFooter className="p-5 pt-0">
+				<CardFooter className="p-5 pt-0 flex gap-2">
 					<Button
-						className="w-full bg-primary hover:bg-primary/90 transition-colors"
+						className="flex-1 bg-primary hover:bg-primary/90 transition-colors"
 						size="sm"
 						onClick={handleAddToCart}
 						aria-label={`Tambahkan ${product.name} ke keranjang`}
 					>
 						<ShoppingCart className="h-4 w-4 mr-2" />
-						Beli Sekarang
+						Beli
+					</Button>
+
+					<Button
+						className="flex-1 bg-green-600 hover:bg-green-700 transition-colors"
+						size="sm"
+						onClick={handleWhatsAppInquiry}
+						aria-label={`Tanya via WhatsApp tentang ${product.name}`}
+					>
+						<Send className="h-4 w-4 mr-2" />
+						WhatsApp
 					</Button>
 				</CardFooter>
 			</Card>
 
-			{/* Dialog Konfirmasi */}
+			{/* Dialog Confirmation for Add to Cart */}
 			<AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Konfirmasi Pembelian</AlertDialogTitle>
+						<AlertDialogTitle>Produk Ditambahkan ke Keranjang</AlertDialogTitle>
 						<AlertDialogDescription>
-							Anda akan diarahkan ke WhatsApp untuk menyelesaikan pembelian
-							produk:
-							<br />
-							<strong>{product.name}</strong>
-							<br />
-							Harga: {formatPrice(product.price)}
-							<br />
-							Link produk: {baseUrl}/products/{product.id}
+							<strong>{product.name}</strong> telah ditambahkan ke keranjang
+							belanja Anda. Apa yang ingin Anda lakukan selanjutnya?
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel onClick={handleCancel}>Batal</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirm}>
-							Lanjut ke WhatsApp
+						<AlertDialogCancel onClick={() => setShowConfirmation(false)}>
+							Lanjut Belanja
+						</AlertDialogCancel>
+						<AlertDialogAction asChild>
+							<Link href="/cart">
+								<Button>Lihat Keranjang</Button>
+							</Link>
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

@@ -4,15 +4,14 @@ import { useState } from "react"
 import { use } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronRight, Minus, Plus, ShoppingCart } from "lucide-react"
+import { ChevronRight, Minus, Plus, ShoppingCart, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCart } from "@/components/cart-provider"
-import { Product } from "@/types/api"
-
+import { SimpleWhatsAppButton } from "@/components/whatsapp-button"
+import { Product } from "@/types/api" // Import the consistent Product type
 // Mock product data - in a real app, you would fetch this from an API
-
 const products: Product[] = [
 	{
 		id: 1,
@@ -129,6 +128,7 @@ export default function ProductPage({
 	const [selectedImage, setSelectedImage] = useState(0)
 
 	const { addToCart } = useCart()
+	const phoneNumber = "628175753345" // Your WhatsApp number
 
 	if (!product) {
 		return (
@@ -155,6 +155,22 @@ export default function ProductPage({
 		addToCart(cartItem)
 	}
 
+	// Create the WhatsApp message for direct purchase
+	const createWhatsAppMessage = () => {
+		if (!selectedSize || !selectedColor) return
+
+		const formattedPrice = new Intl.NumberFormat("id-ID", {
+			style: "currency",
+			currency: "IDR",
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(product.price)
+
+		const message = `Halo, saya tertarik untuk membeli produk:\n\n*${product.name}*\nHarga: ${formattedPrice}\nUkuran: ${selectedSize}\nWarna: ${selectedColor}\nJumlah: ${quantity}\n\nMohon informasi selanjutnya untuk proses pembelian. Terima kasih!`
+
+		return message
+	}
+
 	return (
 		<div className="container px-4 py-12 mx-auto">
 			<div className="flex items-center gap-1 text-sm text-muted-foreground mb-8">
@@ -173,7 +189,7 @@ export default function ProductPage({
 				<div className="space-y-4">
 					<div className="relative aspect-square overflow-hidden rounded-lg border">
 						<Image
-							src={product.images[selectedImage] || "/placeholder.svg"}
+							src={product.images[selectedImage] || "/placeholder-wide.png"}
 							alt={product.name}
 							fill
 							className="object-cover"
@@ -193,7 +209,7 @@ export default function ProductPage({
 								onClick={() => setSelectedImage(index)}
 							>
 								<Image
-									src={image || "/placeholder.svg"}
+									src={image || "/placeholder-wide.png"}
 									alt={`${product.name} - Image ${index + 1}`}
 									fill
 									className="object-cover"
@@ -278,15 +294,28 @@ export default function ProductPage({
 						</div>
 					</div>
 
-					<Button
-						size="lg"
-						className="w-full"
-						disabled={!selectedSize || !selectedColor}
-						onClick={handleAddToCart}
-					>
-						<ShoppingCart className="h-5 w-5 mr-2" />
-						Add to Cart
-					</Button>
+					<div className="flex flex-col gap-4 sm:flex-row">
+						<Button
+							size="lg"
+							className="flex-1"
+							disabled={!selectedSize || !selectedColor}
+							onClick={handleAddToCart}
+						>
+							<ShoppingCart className="h-5 w-5 mr-2" />
+							Add to Cart
+						</Button>
+
+						<SimpleWhatsAppButton
+							phoneNumber={phoneNumber}
+							message={createWhatsAppMessage() || ""}
+							size="lg"
+							variant="default"
+							className="flex-1 bg-green-600 hover:bg-green-700"
+						>
+							<Send className="h-5 w-5 mr-2" />
+							Buy via WhatsApp
+						</SimpleWhatsAppButton>
+					</div>
 
 					<Tabs defaultValue="details">
 						<TabsList className="w-full">
