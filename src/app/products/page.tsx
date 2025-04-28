@@ -1,11 +1,11 @@
 import { ProductGrid } from "@/components/product-grid"
-import { ProductService } from "@/services/product-service"
+import { productApiService } from "@/services/product-service"
 import { Suspense } from "react"
 
 // This component loads products server-side using React Server Components
 async function ProductsContent() {
 	// Fetch products from the API with a 60-second revalidation period
-	const products = await ProductService.getAllProducts()
+	const products = await productApiService.getAllProducts()
 
 	return (
 		<>

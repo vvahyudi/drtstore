@@ -1,28 +1,23 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronRight, Minus, Plus, Send, Home } from "lucide-react"
+import { ChevronRight, Minus, Plus, Send, Home, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCart } from "@/components/cart-provider"
 import { SimpleWhatsAppButton } from "@/components/whatsapp-button"
-import { ProductService } from "@/services/product-service"
 import { formatCurrency } from "@/lib/utils"
-import { Product } from "@/types/api"
 import { useParams } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useProductBySlug } from "@/hooks/use-products"
 
 export default function ProductPage() {
 	// Get slug from URL
 	const params = useParams<{ slug: string }>()
 	const slug = params.slug as string
-
-	const [product, setProduct] = useState<Product | null>(null)
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
 
 	const [quantity, setQuantity] = useState(1)
 	const [selectedSize, setSelectedSize] = useState("")
@@ -32,45 +27,21 @@ export default function ProductPage() {
 	const { addToCart } = useCart()
 	const phoneNumber = "628175753345" // Your WhatsApp number
 
-	// Fetch product details
-	useEffect(() => {
-		const fetchProduct = async () => {
-			try {
-				setLoading(true)
-				// Try to get by slug first
-				let productData = await ProductService.getProductBySlug(slug)
+	// Fetch product details using React Query
+	const { data: product, isLoading, isError } = useProductBySlug(slug)
 
-				// If not found by slug, try by ID
-				if (!productData && !isNaN(parseInt(slug))) {
-					productData = await ProductService.getProductById(parseInt(slug))
-				}
+	// Set default selected size/color when product data loads
+	React.useEffect(() => {
+		if (product) {
+			if (product.sizes && product.sizes.length > 0) {
+				setSelectedSize(product.sizes[0])
+			}
 
-				if (productData) {
-					setProduct(productData)
-
-					// Set default selected size/color if available
-					if (productData.sizes && productData.sizes.length > 0) {
-						setSelectedSize(productData.sizes[0])
-					}
-
-					if (productData.colors && productData.colors.length > 0) {
-						setSelectedColor(productData.colors[0])
-					}
-				} else {
-					setError("Product not found")
-				}
-			} catch (err) {
-				console.error("Error fetching product:", err)
-				setError("Failed to load product. Please try again.")
-			} finally {
-				setLoading(false)
+			if (product.colors && product.colors.length > 0) {
+				setSelectedColor(product.colors[0])
 			}
 		}
-
-		if (slug) {
-			fetchProduct()
-		}
-	}, [slug])
+	}, [product])
 
 	// Handler for adding to cart
 	const handleAddToCart = () => {
@@ -131,7 +102,7 @@ export default function ProductPage() {
 	}
 
 	// Loading state
-	if (loading) {
+	if (isLoading) {
 		return (
 			<div className="container px-4 py-12 mx-auto">
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -159,10 +130,10 @@ export default function ProductPage() {
 	}
 
 	// Error state
-	if (error || !product) {
+	if (isError || !product) {
 		return (
 			<div className="container px-4 py-12 mx-auto text-center">
-				<h1 className="text-2xl font-bold">{error || "Product not found"}</h1>
+				<h1 className="text-2xl font-bold">Product not found</h1>
 				<p className="mt-4">The product you are looking for does not exist.</p>
 				<Button asChild className="mt-6">
 					<Link href="/products">Back to Products</Link>

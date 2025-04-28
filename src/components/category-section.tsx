@@ -1,34 +1,65 @@
+"use client"
+
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
-
-interface Category {
-	name: string
-	image: string
-	href: string
-	description: string
-}
+import { Skeleton } from "@/components/ui/skeleton"
+import { useCategories } from "@/hooks/use-categories"
+import { Loader2 } from "lucide-react"
 
 export function CategorySection() {
-	const categories: Category[] = [
-		{
-			name: "Koleksi Kacamata",
-			image: "/kacamata.jpg?height=600&width=400",
-			href: "/products/men",
-			description: "Pakaian modern dan aksesori untuk pria",
-		},
-		{
-			name: "Koleksi Jam Tangan",
-			image: "/jamtangan.jpg?height=600&width=400",
-			href: "/products/women",
-			description: "Busana terkini dan elegan untuk wanita",
-		},
-		{
-			name: "Aksesoris",
-			image: "/headphone.jpg?height=600&width=400",
-			href: "/products/accessories",
-			description: "Pelengkap gaya untuk tampilan sempurna",
-		},
-	]
+	const { data: categories, isLoading, isError } = useCategories()
+
+	// Static image placeholders until API provides the real ones
+	const categoryImages = {
+		"Koleksi Kacamata": "/kacamata.jpg?height=600&width=400",
+		"Koleksi Jam Tangan": "/jamtangan.jpg?height=600&width=400",
+		Aksesoris: "/headphone.jpg?height=600&width=400",
+	}
+
+	if (isLoading) {
+		return (
+			<section className="py-16 px-4 space-y-12 bg-gradient-to-b from-slate-50 to-white">
+				<div className="flex flex-col items-center text-center space-y-4">
+					<Skeleton className="h-6 w-40" />
+					<Skeleton className="h-10 w-72" />
+					<Skeleton className="h-6 w-96" />
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+					{[1, 2, 3].map((i) => (
+						<Skeleton key={i} className="h-[350px] w-full rounded-xl" />
+					))}
+				</div>
+			</section>
+		)
+	}
+
+	if (isError) {
+		return (
+			<section className="py-16 px-4 space-y-12 bg-gradient-to-b from-slate-50 to-white">
+				<div className="flex flex-col items-center text-center space-y-4">
+					<span className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-sm font-medium">
+						KATEGORI PILIHAN
+					</span>
+					<h2 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+						Jelajahi Kategori
+					</h2>
+					<p className="text-red-500">
+						Failed to load categories. Please try again later.
+					</p>
+				</div>
+			</section>
+		)
+	}
+
+	// Map categories from API to the format we need
+	const mappedCategories =
+		categories?.map((category) => ({
+			name: category.name,
+			image: categoryImages[category.name] || "/placeholder.svg",
+			href: `/products/${category.slug}`,
+			description: category.description,
+		})) || []
 
 	return (
 		<section className="py-16 px-4 space-y-12 bg-gradient-to-b from-slate-50 to-white">
@@ -46,7 +77,7 @@ export function CategorySection() {
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-				{categories.map((category) => (
+				{mappedCategories.map((category) => (
 					<Link
 						key={category.name}
 						href={category.href}

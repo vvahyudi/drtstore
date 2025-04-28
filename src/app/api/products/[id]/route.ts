@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
-import { generateSlug } from "@/lib/utils"
 
 export async function GET(
 	request: NextRequest,
@@ -18,6 +17,7 @@ export async function GET(
 			.select(
 				`
         *,
+        category:categories(*),
         images:product_images(*)
       `,
 			)
@@ -43,7 +43,8 @@ export async function GET(
 			image:
 				product.images.find((img: any) => img.is_primary)?.image_url ||
 				(product.images.length > 0 ? product.images[0]?.image_url : null),
-			category: product.category,
+			category: product.category?.name || "",
+			categoryId: product.category_id,
 			isNew: product.is_new,
 			isFeatured: product.is_featured,
 			stock: product.stock,
@@ -79,65 +80,71 @@ export async function PUT(
 
 		// Generate slug if not provided
 		if (!body.slug && body.name) {
-			body.slug = generateSlug(body.name)
+			body.slug = body.name
+				.toLowerCase()
+				.replace(/\s+/g, "-")
+				.replace(/[^a-z0-9-]/g, "")
 		}
 
-		// Format data for Supabase
-		const productData = {
-			...(body.name && { name: body.name }),
-			...(body.slug && { slug: body.slug }),
-			...(body.price !== undefined && { price: body.price }),
-			...(body.description !== undefined && { description: body.description }),
-			...(body.category && { category: body.category }),
-			...(body.isNew !== undefined && { is_new: body.isNew }),
-			...(body.isFeatured !== undefined && { is_featured: body.isFeatured }),
-			...(body.stock !== undefined && { stock: body.stock }),
-			...(body.details && { details: body.details }),
-			...(body.sizes && { sizes: body.sizes }),
-			...(body.colors && { colors: body.colors }),
-		}
+		// Transform data from frontend format to database format
+		const productData: any = {}
+
+		// Map direct fields
+		if (body.name !== undefined) productData.name = body.name
+		if (body.slug !== undefined) productData.slug = body.slug
+		if (body.price !== undefined) productData.price = body.price
+		if (body.description !== undefined)
+			productData.description = body.description
+		if (body.categoryId !== undefined) productData.category_id = body.categoryId
+		if (body.isNew !== undefined) productData.is_new = body.isNew
+		if (body.isFeatured !== undefined) productData.is_featured = body.isFeatured
+		if (body.stock !== undefined) productData.stock = body.stock
+		if (body.details !== undefined) productData.details = body.details
+		if (body.sizes !== undefined) productData.sizes = body.sizes
+		if (body.colors !== undefined) productData.colors = body.colors
 
 		// Update product in database
 		const { data: product, error } = await supabase
 			.from("products")
 			.update(productData)
 			.eq("id", id)
-			.select()
+			.select(
+				`
+        *,
+        category:categories(*),
+        images:product_images(*)
+      `,
+			)
 			.single()
 
 		if (error) {
 			return NextResponse.json({ error: error.message }, { status: 400 })
 		}
 
-		// Fetch the images to include in the response
-		const { data: imageData } = await supabase
-			.from("product_images")
-			.select("*")
-			.eq("product_id", id)
-
-		// Transform the product data for response
-		const transformedProduct = {
+		// Transform for response in the same way as GET
+		const formattedProduct = {
 			id: product.id,
 			name: product.name,
 			slug: product.slug,
 			price: product.price,
-			description: product.description,
-			category: product.category,
+			image:
+				product.images.find((img: any) => img.is_primary)?.image_url ||
+				(product.images.length > 0 ? product.images[0]?.image_url : null),
+			category: product.category?.name || "",
+			categoryId: product.category_id,
 			isNew: product.is_new,
 			isFeatured: product.is_featured,
 			stock: product.stock,
+			description: product.description,
 			details: product.details,
 			sizes: product.sizes,
 			colors: product.colors,
-			images: imageData?.map((img) => img.image_url) || [],
-			image:
-				imageData?.find((img) => img.is_primary)?.image_url ||
-				(imageData && imageData.length > 0 ? imageData[0].image_url : ""),
+			images: product.images.map((img: any) => img.image_url),
 		}
 
 		return NextResponse.json({
 			message: "Product updated successfully",
-			product: transformedProduct,
+			product: formattedProduct,
 		})
 	} catch (error) {
 		console.error("Error updating product:", error)

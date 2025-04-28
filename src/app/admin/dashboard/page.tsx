@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import {
 	BarChart,
 	Bar,
@@ -16,44 +15,10 @@ import {
 	Pie,
 	Cell,
 } from "recharts"
-import { ChevronUp, ChevronDown, AlertCircle } from "lucide-react"
+import { ChevronUp, ChevronDown, AlertCircle, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { supabase } from "@/lib/supabase"
-import { toast } from "sonner"
-
-interface SummaryData {
-	products: number
-	orders: number
-	revenue: number
-	pendingOrders: number
-}
-
-interface OrderStats {
-	pending: number
-	processing: number
-	completed: number
-	cancelled: number
-	total: number
-}
-
-interface RecentOrder {
-	id: number
-	customer: string
-	amount: number
-	status: string
-	date: string
-}
-
-interface MonthlyRevenue {
-	month: string
-	amount: number
-}
-
-interface CategoryStat {
-	name: string
-	value: number
-}
+import { useAdminDashboardStats } from "@/hooks/use-admin-dashboard"
 
 // Format currency to IDR
 const formatCurrency = (amount: number) => {
@@ -123,224 +88,39 @@ const StatCard = ({
 		</Card>
 	)
 }
-// [Previous interfaces and helper functions remain the same]
 
 export default function DashboardPage() {
-	// [Previous state and useEffect remain the same]
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
-	const [summary, setSummary] = useState<SummaryData>({
-		products: 0,
-		orders: 0,
-		revenue: 0,
-		pendingOrders: 0,
-	})
-	const [orderStats, setOrderStats] = useState<OrderStats>({
-		pending: 0,
-		processing: 0,
-		completed: 0,
-		cancelled: 0,
-		total: 0,
-	})
-	const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
-	const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([])
-	const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([])
-
-	// Fetch dashboard data
-	useEffect(() => {
-		const fetchDashboardData = async () => {
-			setLoading(true)
-			setError(null)
-
-			try {
-				// Fetch products count
-				const { count: productsCount, error: productsError } = await supabase
-					.from("products")
-					.select("*", { count: "exact", head: true })
-
-				// Fetch orders statistics
-				const { data: ordersData, error: ordersError } = await supabase
-					.from("orders")
-					.select("status")
-
-				// Fetch total revenue
-				const { data: revenueData, error: revenueError } = await supabase
-					.from("orders")
-					.select("total_amount")
-					.eq("status", "completed")
-
-				// Fetch recent orders
-				const { data: recentOrdersData, error: recentOrdersError } =
-					await supabase
-						.from("orders")
-						.select(
-							`
-            id,
-            total_amount,
-            status,
-            created_at,
-            user_id,
-            users(email)
-          `,
-						)
-						.order("created_at", { ascending: false })
-						.limit(5)
-
-				// Fetch monthly revenue
-				const { data: monthlyRevenueData, error: monthlyRevenueError } =
-					await supabase
-						.from("orders")
-						.select("created_at, total_amount")
-						.eq("status", "completed")
-						.gte(
-							"created_at",
-							new Date(
-								new Date().setMonth(new Date().getMonth() - 6),
-							).toISOString(),
-						)
-
-				// Fetch category statistics
-				const { data: categoryData, error: categoryError } = await supabase
-					.from("products")
-					.select("category")
-
-				// Check for any errors
-				if (
-					productsError ||
-					ordersError ||
-					revenueError ||
-					recentOrdersError ||
-					monthlyRevenueError ||
-					categoryError
-				) {
-					throw new Error("Failed to fetch dashboard data")
-				}
-
-				// Process order statistics
-				const orderStatistics: OrderStats = {
-					pending: ordersData.filter((o) => o.status === "pending").length,
-					processing: ordersData.filter((o) => o.status === "processing")
-						.length,
-					completed: ordersData.filter((o) => o.status === "completed").length,
-					cancelled: ordersData.filter((o) => o.status === "cancelled").length,
-					total: ordersData.length,
-				}
-
-				// Process recent orders
-				const processedRecentOrders: RecentOrder[] = recentOrdersData.map(
-					(order) => ({
-						id: order.id,
-						customer: "Unknown",
-						amount: order.total_amount,
-						status: order.status,
-						date: order.created_at,
-					}),
-				)
-
-				// Process monthly revenue
-				const processedMonthlyRevenue =
-					processMonthlyRevenue(monthlyRevenueData)
-
-				// Process category statistics
-				const processedCategoryStats = processCategoryStats(categoryData)
-
-				// Set state
-				setSummary({
-					products: productsCount || 0,
-					orders: ordersData.length,
-					revenue: revenueData.reduce(
-						(sum, order) => sum + order.total_amount,
-						0,
-					),
-					pendingOrders: orderStatistics.pending,
-				})
-				setOrderStats(orderStatistics)
-				setRecentOrders(processedRecentOrders)
-				setMonthlyRevenue(processedMonthlyRevenue)
-				setCategoryStats(processedCategoryStats)
-			} catch (err) {
-				console.error("Error fetching dashboard data:", err)
-				setError("Failed to load dashboard data. Please try again.")
-				toast.error("Failed to load dashboard data")
-			} finally {
-				setLoading(false)
-			}
-		}
-
-		fetchDashboardData()
-	}, [])
-
-	// Process monthly revenue data
-	const processMonthlyRevenue = (orders: any[]): MonthlyRevenue[] => {
-		const monthlyData: Record<string, number> = {}
-
-		// Generate last 6 months
-		for (let i = 5; i >= 0; i--) {
-			const date = new Date()
-			date.setMonth(date.getMonth() - i)
-			const monthYear = date.toLocaleString("default", {
-				month: "short",
-				year: "numeric",
-			})
-			monthlyData[monthYear] = 0
-		}
-
-		// Aggregate revenue
-		orders.forEach((order) => {
-			const date = new Date(order.created_at)
-			const monthYear = date.toLocaleString("default", {
-				month: "short",
-				year: "numeric",
-			})
-			if (monthlyData.hasOwnProperty(monthYear)) {
-				monthlyData[monthYear] += order.total_amount
-			}
-		})
-
-		return Object.entries(monthlyData).map(([month, amount]) => ({
-			month,
-			amount,
-		}))
-	}
-
-	// Process category statistics
-	const processCategoryStats = (products: any[]): CategoryStat[] => {
-		const categoryCount: Record<string, number> = {}
-
-		products.forEach((product) => {
-			const category = product.category
-			categoryCount[category] = (categoryCount[category] || 0) + 1
-		})
-
-		return Object.entries(categoryCount).map(([name, value]) => ({
-			name,
-			value,
-		}))
-	}
+	// Fetch dashboard data using React Query
+	const { data, isLoading, isError } = useAdminDashboardStats()
 
 	// Define colors for pie chart
 	const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"]
 
 	// Render loading state
-	if (loading) {
+	if (isLoading) {
 		return (
 			<div className="flex justify-center items-center h-full">
-				Loading dashboard data...
+				<Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+				<span className="text-muted-foreground">Loading dashboard data...</span>
 			</div>
 		)
 	}
 
 	// Render error state
-	if (error) {
+	if (isError) {
 		return (
 			<div className="flex justify-center items-center h-full">
 				<div className="flex items-center gap-2 text-red-500">
 					<AlertCircle className="h-5 w-5" />
-					<span>{error}</span>
+					<span>Failed to load dashboard data. Please try again.</span>
 				</div>
 			</div>
 		)
 	}
+
+	// Extract data
+	const { summary, orderStats, recentOrders, monthlyRevenue, categoryStats } =
+		data!
 
 	return (
 		<div className="space-y-6">

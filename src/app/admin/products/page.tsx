@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ProductList } from "@/components/admin/ProductList"
-import { ProductForm } from "@/components/admin/ProductForm"
-import { ProductService, ProductFormData } from "@/services/product-service"
+import { useState } from "react"
+import { ProductList } from "@/components/admin/product-list"
+import { ProductForm } from "@/components/admin/product-form"
 import { Product } from "@/types/api"
 import { toast } from "sonner"
 import {
@@ -17,29 +16,30 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Loader2 } from "lucide-react"
+import { useCategories } from "@/hooks/use-categories"
+import {
+	useCreateProduct,
+	useUpdateProduct,
+	useDeleteProduct,
+} from "@/hooks/use-products"
+import { useRouter } from "next/navigation"
 
 export default function ProductsPage() {
-	// State for products
-	const [categories, setCategories] = useState<string[]>([])
+	// State for form and dialog
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-	const [isDeleting, setIsDeleting] = useState(false)
 
-	// Load categories
-	useEffect(() => {
-		const loadCategories = async () => {
-			try {
-				const categories = await ProductService.getCategories()
-				setCategories(categories)
-			} catch (error) {
-				console.error("Error loading categories:", error)
-				toast.error("Failed to load categories")
-			}
-		}
+	const router = useRouter()
 
-		loadCategories()
-	}, [])
+	// Get categories for product form
+	const { data: categoriesData } = useCategories()
+	const categories = categoriesData ? categoriesData.map((c) => c.name) : []
+
+	// Mutations for product operations
+	const { mutate: createProduct, isPending: isCreating } = useCreateProduct()
+	const { mutate: updateProduct, isPending: isUpdating } = useUpdateProduct()
+	const { mutate: deleteProduct, isPending: isDeleting } = useDeleteProduct()
 
 	// Handle adding a new product
 	const handleAddProduct = () => {
@@ -56,7 +56,7 @@ export default function ProductsPage() {
 	// Handle viewing a product
 	const handleViewProduct = (product: Product) => {
 		// Redirect to the product page on the frontend
-		window.open(`/products/${product.id}`, "_blank")
+		window.open(`/products/${product.slug || product.id}`, "_blank")
 	}
 
 	// Handle deleting a product
@@ -69,29 +69,51 @@ export default function ProductsPage() {
 	const confirmDelete = async () => {
 		if (!selectedProduct) return
 
-		setIsDeleting(true)
-		try {
-			await ProductService.deleteProduct(selectedProduct.id)
-			toast.success("Product deleted successfully")
-			setIsDeleteDialogOpen(false)
-			// Refresh the product list by triggering a re-render
-			setSelectedProduct(null)
-		} catch (error) {
-			console.error("Error deleting product:", error)
-			toast.error("Failed to delete product")
-		} finally {
-			setIsDeleting(false)
-		}
+		deleteProduct(selectedProduct.id, {
+			onSuccess: () => {
+				setIsDeleteDialogOpen(false)
+				setSelectedProduct(null)
+			},
+			onError: (error) => {
+				console.error("Error deleting product:", error)
+				toast.error("Failed to delete product")
+			},
+		})
 	}
 
 	// Handle form submission
-	const handleFormSubmit = async (data: ProductFormData): Promise<Product> => {
-		if (selectedProduct) {
-			// Update existing product
-			return await ProductService.updateProduct(selectedProduct.id, data)
-		} else {
-			// Create new product
-			return await ProductService.createProduct(data)
+	const handleFormSubmit = async (data: any) => {
+		try {
+			if (selectedProduct) {
+				// Update existing product
+				updateProduct(
+					{
+						id: selectedProduct.id,
+						data,
+					},
+					{
+						onSuccess: () => {
+							setIsFormOpen(false)
+						},
+					},
+				)
+			} else {
+				// Create new product
+				createProduct(data, {
+					onSuccess: () => {
+						setIsFormOpen(false)
+					},
+				})
+			}
+			return selectedProduct || { id: 0 } // Return something to satisfy the form
+		} catch (error) {
+			console.error("Error submitting product:", error)
+			toast.error(
+				selectedProduct
+					? "Failed to update product"
+					: "Failed to create product",
+			)
+			throw error
 		}
 	}
 
@@ -112,6 +134,7 @@ export default function ProductsPage() {
 				onSubmit={handleFormSubmit}
 				title={selectedProduct ? "Edit Product" : "Add New Product"}
 				categories={categories}
+				isSubmitting={false}
 			/>
 
 			{/* Delete Confirmation Dialog */}

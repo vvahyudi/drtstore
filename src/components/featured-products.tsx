@@ -1,11 +1,11 @@
 "use client"
-import { useEffect, useState } from "react"
+
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Send } from "lucide-react"
+import { ShoppingCart, Send, Loader2 } from "lucide-react"
 import { useCart } from "@/components/cart-provider"
 import {
 	AlertDialog,
@@ -17,34 +17,16 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Product } from "@/types/api"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
-import { ProductService } from "@/services/product-service"
+import { useFeaturedProducts } from "@/hooks/use-products"
+import { Product } from "@/types/api"
 
 export function FeaturedProducts() {
-	const [products, setProducts] = useState<Product[]>([])
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
+	const { data: products, isLoading, isError } = useFeaturedProducts(4)
 
-	useEffect(() => {
-		const loadFeaturedProducts = async () => {
-			try {
-				setLoading(true)
-				const featuredProducts = await ProductService.getFeaturedProducts(4)
-				setProducts(featuredProducts)
-			} catch (err) {
-				console.error("Error loading featured products:", err)
-				setError("Failed to load products")
-			} finally {
-				setLoading(false)
-			}
-		}
-
-		loadFeaturedProducts()
-	}, [])
-
-	if (loading) {
+	if (isLoading) {
 		return (
 			<section className="space-y-8 py-10">
 				<div className="flex flex-col items-center text-center space-y-3">
@@ -52,6 +34,7 @@ export function FeaturedProducts() {
 						Produk Unggulan
 					</h2>
 					<p className="text-muted-foreground max-w-[600px] text-lg">
+						<Loader2 className="h-8 w-8 animate-spin mx-auto" />
 						Memuat produk unggulan...
 					</p>
 					<div className="w-24 h-1 bg-primary rounded-full mt-2"></div>
@@ -60,14 +43,16 @@ export function FeaturedProducts() {
 		)
 	}
 
-	if (error) {
+	if (isError) {
 		return (
 			<section className="space-y-8 py-10">
 				<div className="flex flex-col items-center text-center space-y-3">
 					<h2 className="text-3xl font-bold tracking-tight text-primary">
 						Produk Unggulan
 					</h2>
-					<p className="text-muted-foreground max-w-[600px] text-lg">{error}</p>
+					<p className="text-muted-foreground max-w-[600px] text-lg">
+						Gagal memuat produk unggulan. Silakan coba lagi nanti.
+					</p>
 					<div className="w-24 h-1 bg-primary rounded-full mt-2"></div>
 				</div>
 			</section>
@@ -92,7 +77,7 @@ export function FeaturedProducts() {
 				<div className="w-24 h-1 bg-primary rounded-full mt-2"></div>
 			</div>
 			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-				{products.map((product) => (
+				{products?.map((product) => (
 					<ProductCard key={product.id} product={product} />
 				))}
 			</div>

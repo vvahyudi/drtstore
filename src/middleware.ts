@@ -1,87 +1,50 @@
-// /**
-//  * File: src/middleware.ts
-//  * This middleware protects the admin routes by checking authentication
-//  */
-
-// import { NextRequest, NextResponse } from "next/server"
-// import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
-
-// export async function middleware(req: NextRequest) {
-// 	const res = NextResponse.next()
-// 	const supabase = createMiddlewareClient({ req, res })
-
-// 	// Check if the user is authenticated
-// 	const {
-// 		data: { session },
-// 	} = await supabase.auth.getSession()
-
-// 	// If not authenticated and trying to access admin routes
-// 	if (!session && req.nextUrl.pathname.startsWith("/admin")) {
-// 		// If the user is trying to access the login page, let them through
-// 		if (req.nextUrl.pathname === "/admin/login") {
-// 			return res
-// 		}
-
-// 		// Redirect to login page
-// 		const redirectUrl = new URL("/admin/login", req.url)
-// 		return NextResponse.redirect(redirectUrl)
-// 	}
-
-// 	// If authenticated, check if the user is an admin for admin routes
-// 	// if (session && req.nextUrl.pathname.startsWith("/admin")) {
-// 	// 	// Skip this check for the login page
-// 	// 	if (req.nextUrl.pathname === "/admin/login") {
-// 	// 		// If already logged in, redirect to dashboard
-// 	// 		const redirectUrl = new URL("/admin/dashboard", req.url)
-// 	// 		return NextResponse.redirect(redirectUrl)
-// 	// 	}
-
-// 	// 	try {
-// 	// 		// Check if the user has the admin role
-// 	// 		const { data: roleData, error: roleError } = await supabase
-// 	// 			.from("user_roles")
-// 	// 			.select("role")
-// 	// 			.eq("user_id", session.user.id)
-// 	// 			.eq("role", "admin")
-// 	// 			.single()
-
-// 	// 		if (roleError || !roleData) {
-// 	// 			// User doesn't have admin role, redirect to unauthorized page
-// 	// 			const redirectUrl = new URL("/unauthorized", req.url)
-// 	// 			return NextResponse.redirect(redirectUrl)
-// 	// 		}
-// 	// 	} catch (error) {
-// 	// 		console.error("Error checking admin role:", error)
-// 	// 		// On error, redirect to login page
-// 	// 		const redirectUrl = new URL("/admin/login", req.url)
-// 	// 		return NextResponse.redirect(redirectUrl)
-// 	// 	}
-// 	// }
-
-// 	return res
-// }
-
-// // Only run the middleware on admin routes
-// export const config = {
-// 	matcher: ["/admin/:path*"],
-// }
-
-/**
- * File: src/middleware-without-auth.ts
- * A simplified middleware without strict authentication
- */
-
 import { NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 
-export function middleware(req: NextRequest) {
-	// Simply pass through all requests
+export async function middleware(request: NextRequest) {
+	const path = request.nextUrl.pathname
+
+	// Check if the path starts with /admin and is not the login page
+	const isAdminPath = path.startsWith("/admin")
+	const isLoginPath = path === "/admin/login"
+
+	// Public paths that don't require authentication
+	const isPublicPath = isLoginPath
+
+	if (isAdminPath && !isPublicPath) {
+		// This is a protected Admin route, verify authentication
+		const token = await getToken({
+			req: request,
+			secret: process.env.NEXTAUTH_SECRET,
+		})
+
+		if (!token) {
+			// User is not authenticated, redirect to login page
+			const url = new URL("/admin/login", request.url)
+			// Add the callback URL to return after login
+			url.searchParams.set("callbackUrl", encodeURI(request.url))
+			return NextResponse.redirect(url)
+		}
+	} else if (isLoginPath) {
+		// If trying to access login page while already authenticated,
+		// redirect to dashboard
+		const token = await getToken({
+			req: request,
+			secret: process.env.NEXTAUTH_SECRET,
+		})
+
+		if (token) {
+			return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+		}
+	}
+
 	return NextResponse.next()
 }
 
-// Apply middleware to all routes
+// Specify which routes this middleware applies to
 export const config = {
 	matcher: [
-		// Optional: specify specific routes or patterns if needed
-		// "/((?!api|_next/static|_next/image|favicon.ico).*)"
+		// Match all admin routes
+		"/admin/:path*",
 	],
 }

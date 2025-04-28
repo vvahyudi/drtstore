@@ -11,7 +11,6 @@ import {
 	Settings,
 	LogOut,
 	Menu,
-	X,
 	Bell,
 	ChevronDown,
 } from "lucide-react"
@@ -26,7 +25,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { supabase } from "@/lib/supabase"
+import { useAdminAuth } from "@/hooks/use-admin-auth"
 
 interface AdminLayoutProps {
 	children: ReactNode
@@ -36,10 +35,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 	const pathname = usePathname()
 	const router = useRouter()
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+	const { logout, session, isAuthenticated } = useAdminAuth()
+
+	// Only show the username if we have a session
+	const username = session?.user?.name || "Admin"
 
 	const handleSignOut = async () => {
-		await supabase.auth.signOut()
-		router.push("/admin/login")
+		await logout()
 	}
 
 	const navItems = [
@@ -69,6 +71,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 			icon: <Settings className="w-5 h-5" />,
 		},
 	]
+
+	// Show login page if not authenticated
+	if (!isAuthenticated && pathname !== "/admin/login") {
+		router.push("/admin/login")
+		return null
+	}
 
 	return (
 		<div className="flex h-screen bg-gray-100">
@@ -190,9 +198,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 									>
 										<Avatar className="w-8 h-8">
 											<AvatarImage src="/default-avatar.png" alt="Admin" />
-											<AvatarFallback>AD</AvatarFallback>
+											<AvatarFallback>
+												{username.charAt(0).toUpperCase()}
+											</AvatarFallback>
 										</Avatar>
-										<span className="hidden md:inline-block">Admin</span>
+										<span className="hidden md:inline-block">{username}</span>
 										<ChevronDown className="w-4 h-4" />
 									</Button>
 								</DropdownMenuTrigger>

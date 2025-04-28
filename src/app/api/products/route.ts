@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
-import { generateSlug } from "@/lib/utils"
 
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url)
-		const category = searchParams.get("category")
+		const categoryId = searchParams.get("categoryId")
+		const categorySlug = searchParams.get("categorySlug")
 		const isNew = searchParams.get("isNew")
 		const isFeatured = searchParams.get("isFeatured")
 		const limit = parseInt(searchParams.get("limit") || "100")
@@ -14,16 +14,28 @@ export async function GET(request: NextRequest) {
 		const orderDirection = searchParams.get("orderDirection") || "desc"
 		const search = searchParams.get("search")
 
-		let query = supabase.from("products").select(
-			`
-        *,
-        images:product_images(*)
-      `,
-		)
+		// Start building query
+		let query = supabase.from("products").select(`
+      *,
+      category:categories(*),
+      images:product_images(*)
+    `)
 
 		// Apply filters
-		if (category) {
-			query = query.eq("category", category)
+		if (categoryId) {
+			query = query.eq("category_id", categoryId)
+		}
+
+		if (categorySlug) {
+			const { data: category } = await supabase
+				.from("categories")
+				.select("id")
+				.eq("slug", categorySlug)
+				.single()
+
+			if (category) {
+				query = query.eq("category_id", category.id)
+			}
 		}
 
 		if (isNew) {
@@ -44,7 +56,7 @@ export async function GET(request: NextRequest) {
 
 		const sortField = validSortFields.includes(orderBy) ? orderBy : "created_at"
 		const sortOrder = validDirections.includes(orderDirection as any)
-			? orderDirection === "asc"
+			? orderDirection
 			: "desc"
 
 		query = query.order(sortField, { ascending: sortOrder === "asc" })
@@ -55,6 +67,7 @@ export async function GET(request: NextRequest) {
 		const { data, error, count } = await query
 
 		if (error) {
+			console.error("Error fetching products:", error)
 			return NextResponse.json({ error: error.message }, { status: 400 })
 		}
 
@@ -67,7 +80,8 @@ export async function GET(request: NextRequest) {
 			image:
 				product.images.find((img: any) => img.is_primary)?.image_url ||
 				(product.images.length > 0 ? product.images[0]?.image_url : null),
-			category: product.category,
+			category: product.category?.name || "",
+			categoryId: product.category_id,
 			isNew: product.is_new,
 			isFeatured: product.is_featured,
 			stock: product.stock,
@@ -88,86 +102,9 @@ export async function GET(request: NextRequest) {
 			},
 		})
 	} catch (error) {
-		console.error("Error fetching products:", error)
+		console.error("Error in products API:", error)
 		return NextResponse.json(
 			{ error: "Failed to fetch products" },
-			{ status: 500 },
-		)
-	}
-}
-
-export async function POST(request: NextRequest) {
-	try {
-		const body = await request.json()
-
-		// Validate request body
-		if (!body.name || !body.price || !body.category) {
-			return NextResponse.json(
-				{ error: "Name, price, and category are required" },
-				{ status: 400 },
-			)
-		}
-
-		// Generate slug if not provided
-		if (!body.slug) {
-			body.slug = generateSlug(body.name)
-		}
-
-		// Format data for Supabase
-		const productData = {
-			name: body.name,
-			slug: body.slug,
-			price: body.price,
-			description: body.description || "",
-			category: body.category,
-			is_new: body.isNew || false,
-			is_featured: body.isFeatured || false,
-			stock: body.stock || 0,
-			details: body.details || {},
-			sizes: body.sizes || [],
-			colors: body.colors || [],
-		}
-
-		// Insert product into database
-		const { data: product, error } = await supabase
-			.from("products")
-			.insert(productData)
-			.select()
-			.single()
-
-		if (error) {
-			return NextResponse.json({ error: error.message }, { status: 400 })
-		}
-
-		// Transform the product data for response
-		const transformedProduct = {
-			id: product.id,
-			name: product.name,
-			slug: product.slug,
-			price: product.price,
-			description: product.description,
-			category: product.category,
-			isNew: product.is_new,
-			isFeatured: product.is_featured,
-			stock: product.stock,
-			details: product.details,
-			sizes: product.sizes,
-			colors: product.colors,
-			images: [],
-			image: "",
-		}
-
-		return NextResponse.json(
-			{
-				message: "Product created successfully",
-				product: transformedProduct,
-			},
-			{ status: 201 },
-		)
-	} catch (error) {
-		console.error("Error creating product:", error)
-		return NextResponse.json(
-			{ error: "Failed to create product" },
 			{ status: 500 },
 		)
 	}

@@ -1,72 +1,41 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Eye, EyeOff, AlertCircle, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { useAdminAuth } from "@/hooks/use-admin-auth"
 
 export default function AdminLoginPage() {
-	const [email, setEmail] = useState("")
+	const [username, setUsername] = useState("")
 	const [password, setPassword] = useState("")
 	const [showPassword, setShowPassword] = useState(false)
-	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	const router = useRouter()
 
-	// This would check if the user is already logged in and is an admin
-	// useEffect(() => {
-	//   const checkAuth = async () => {
-	//     const { data } = await supabase.auth.getSession()
-	//     if (data.session) {
-	//       router.push("/admin/dashboard")
-	//     }
-	//   }
-	//   checkAuth()
-	// }, [])
+	const { login, isLoading, isAuthenticated } = useAdminAuth()
+	const searchParams = useSearchParams()
+	const callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setError(null)
-		setIsLoading(true)
+
+		if (!username || !password) {
+			setError("Please enter both username and password")
+			return
+		}
 
 		try {
-			// Authenticate with Supabase
-			const { data, error } = await supabase.auth.signInWithPassword({
-				email,
-				password,
-			})
-
-			if (error) throw error
-
-			// Check if user has admin role (you need to implement this)
-			// This is just an example - you would check your user_roles table
-			const { data: roleData, error: roleError } = await supabase
-				.from("user_roles")
-				.select("role")
-				.eq("user_id", data.user?.id)
-				.eq("role", "admin")
-				.single()
-
-			if (roleError || !roleData) {
-				throw new Error("Unauthorized access. You don't have admin privileges.")
+			const success = await login(username, password)
+			if (!success) {
+				setError("Invalid username or password")
 			}
-
-			// Redirect to admin dashboard
-			router.push("/admin/dashboard")
 		} catch (err) {
 			console.error("Login error:", err)
-			setError(
-				err instanceof Error
-					? err.message
-					: "Failed to login. Please check your credentials.",
-			)
-		} finally {
-			setIsLoading(false)
+			setError("Failed to login. Please try again.")
 		}
 	}
 
@@ -95,15 +64,15 @@ export default function AdminLoginPage() {
 				<form className="mt-8 space-y-6" onSubmit={handleLogin}>
 					<div className="space-y-4">
 						<div>
-							<Label htmlFor="email">Email address</Label>
+							<Label htmlFor="username">Username</Label>
 							<Input
-								id="email"
-								name="email"
-								type="email"
-								autoComplete="email"
+								id="username"
+								name="username"
+								type="text"
+								autoComplete="username"
 								required
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
 								className="mt-1"
 							/>
 						</div>

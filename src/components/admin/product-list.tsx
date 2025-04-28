@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
 	Search,
 	Plus,
@@ -12,6 +12,7 @@ import {
 	Filter,
 	SortDesc,
 	ArrowUpDown,
+	Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,12 +54,12 @@ import {
 	PaginationNext,
 	PaginationPrevious,
 } from "@/components/ui/pagination"
-import { ProductService, ProductQueryParams } from "@/services/product-service"
-import { Product } from "@/types/api"
+import { Product, ProductQueryParams } from "@/types/api"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { useProducts, useDeleteProduct } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
 
 // Format currency
 const formatCurrency = (amount: number) => {
@@ -83,115 +84,56 @@ export function ProductList({
 	onView,
 	onAdd,
 }: ProductListProps) {
-	// State for products and UI
-	const [products, setProducts] = useState<Product[]>([])
-	const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
-	const [categories, setCategories] = useState<string[]>([])
-
-	// Search and filter state
+	// State for search and filter
 	const [searchTerm, setSearchTerm] = useState("")
 	const [categoryFilter, setCategoryFilter] = useState("all")
 	const [stockFilter, setStockFilter] = useState("all")
 	const [sortBy, setSortBy] = useState("created_at")
 	const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-
-	// Pagination state
 	const [currentPage, setCurrentPage] = useState(1)
-	const [totalProducts, setTotalProducts] = useState(0)
 	const [itemsPerPage] = useState(10)
 
-	const router = useRouter()
-
-	// Load products
-	useEffect(() => {
-		loadProducts()
-		loadCategories()
-	}, [])
-
-	// Fetch products
-	const loadProducts = async () => {
-		setLoading(true)
-		setError(null)
-
-		try {
-			const params: ProductQueryParams = {
-				orderBy: sortBy,
-				orderDirection: sortOrder,
-				limit: 100, // Get all for client-side filtering
-			}
-
-			const products = await ProductService.getAllProducts(params)
-			setProducts(products)
-			setTotalProducts(products.length)
-			applyFilters(products)
-		} catch (err) {
-			console.error("Error loading products:", err)
-			setError("Failed to load products. Please try again.")
-			toast.error("Failed to load products")
-		} finally {
-			setLoading(false)
-		}
+	// Query parameters
+	const queryParams: ProductQueryParams = {
+		page: currentPage,
+		limit: itemsPerPage,
+		orderBy: sortBy,
+		orderDirection: sortOrder,
 	}
 
-	// Load categories
-	const loadCategories = async () => {
-		try {
-			const categories = await ProductService.getCategories()
-			setCategories(categories)
-		} catch (err) {
-			console.error("Error loading categories:", err)
-			toast.error("Failed to load categories")
-		}
+	if (searchTerm) {
+		queryParams.search = searchTerm
 	}
 
-	// Apply filters
-	const applyFilters = (productList = products) => {
-		let filtered = [...productList]
-
-		// Apply search filter
-		if (searchTerm) {
-			filtered = filtered.filter(
-				(product) =>
-					product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					product.description.toLowerCase().includes(searchTerm.toLowerCase()),
-			)
-		}
-
-		// Apply category filter
-		if (categoryFilter !== "all") {
-			filtered = filtered.filter(
-				(product) => product.category === categoryFilter,
-			)
-		}
-
-		// Apply stock filter
-		if (stockFilter === "in_stock") {
-			filtered = filtered.filter((product) => product.stock > 0)
-		} else if (stockFilter === "out_of_stock") {
-			filtered = filtered.filter((product) => product.stock <= 0)
-		}
-
-		setFilteredProducts(filtered)
-		// Reset to first page when filters change
-		setCurrentPage(1)
+	if (categoryFilter !== "all") {
+		queryParams.category = categoryFilter
 	}
+
+	if (stockFilter === "in_stock") {
+		// Logic for in stock filter
+	} else if (stockFilter === "out_of_stock") {
+		// Logic for out of stock filter
+	}
+
+	// Fetch products with React Query
+	const {
+		data: productsData,
+		isLoading,
+		isError,
+		refetch,
+	} = useProducts(queryParams)
+
+	// Fetch categories for filtering
+	const { data: categories = [] } = useCategories()
+
+	// Delete product mutation
+	const { mutate: deleteProduct, isPending: isDeleting } = useDeleteProduct()
 
 	// Handle search changes
 	const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchTerm(e.target.value)
+		setCurrentPage(1) // Reset pagination when search changes
 	}
-
-	// Refresh data
-	const handleRefresh = () => {
-		loadProducts()
-	}
-
-	// Apply filters when search or filters change
-	useEffect(() => {
-		applyFilters()
-	}, [searchTerm, categoryFilter, stockFilter, sortBy, sortOrder])
 
 	// Handle sort
 	const handleSort = (field: string) => {
@@ -201,24 +143,37 @@ export function ProductList({
 			setSortBy(field)
 			setSortOrder("asc")
 		}
+		setCurrentPage(1) // Reset pagination when sort changes
 	}
-
-	// Calculate pagination
-	const indexOfLastItem = currentPage * itemsPerPage
-	const indexOfFirstItem = indexOfLastItem - itemsPerPage
-	const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem)
-	const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
 
 	// Handle page change
 	const handlePageChange = (newPage: number) => {
 		setCurrentPage(newPage)
 	}
 
+	// Handle delete
+	const handleDelete = (product: Product) => {
+		if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
+			deleteProduct(product.id, {
+				onSuccess: () => {
+					refetch()
+				},
+			})
+		}
+	}
+
 	// Generate pagination links
+	const totalProducts = productsData?.length || 0
+	const totalPages = Math.ceil(totalProducts / itemsPerPage)
+
 	const renderPaginationLinks = () => {
 		const links = []
 
-		for (let i = 1; i <= totalPages; i++) {
+		// Show a maximum of 5 page links
+		const startPage = Math.max(1, currentPage - 2)
+		const endPage = Math.min(totalPages, startPage + 4)
+
+		for (let i = startPage; i <= endPage; i++) {
 			links.push(
 				<PaginationItem key={i}>
 					<PaginationLink
@@ -234,22 +189,29 @@ export function ProductList({
 		return links
 	}
 
+	// Calculate current items to display
+	const indexOfLastItem = currentPage * itemsPerPage
+	const indexOfFirstItem = indexOfLastItem - itemsPerPage
+	const currentItems =
+		productsData?.slice(indexOfFirstItem, indexOfLastItem) || []
+
 	// Render loading state
-	if (loading && products.length === 0) {
+	if (isLoading && !productsData) {
 		return (
 			<div className="flex justify-center items-center h-64">
-				<p className="text-muted-foreground">Loading products...</p>
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+				<p className="ml-2 text-muted-foreground">Loading products...</p>
 			</div>
 		)
 	}
 
 	// Render error state
-	if (error && products.length === 0) {
+	if (isError) {
 		return (
 			<div className="flex justify-center items-center h-64">
 				<div className="flex items-center gap-2 text-destructive">
 					<AlertCircle className="h-5 w-5" />
-					<span>{error}</span>
+					<span>Failed to load products. Please try again.</span>
 				</div>
 			</div>
 		)
@@ -290,8 +252,8 @@ export function ProductList({
 								<SelectContent>
 									<SelectItem value="all">All Categories</SelectItem>
 									{categories.map((category) => (
-										<SelectItem key={category} value={category}>
-											{category}
+										<SelectItem key={category.id} value={category.slug}>
+											{category.name}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -309,7 +271,7 @@ export function ProductList({
 								</SelectContent>
 							</Select>
 
-							<Button variant="outline" onClick={handleRefresh}>
+							<Button variant="outline" onClick={() => refetch()}>
 								Refresh
 							</Button>
 						</div>
@@ -397,11 +359,15 @@ export function ProductList({
 											<TableCell>
 												<Badge
 													variant={
-														product.stock > 0 ? "default" : "destructive"
+														product.stock && product.stock > 0
+															? "default"
+															: "destructive"
 													}
 													className="capitalize"
 												>
-													{product.stock > 0 ? "In Stock" : "Out of Stock"}
+													{product.stock && product.stock > 0
+														? "In Stock"
+														: "Out of Stock"}
 												</Badge>
 											</TableCell>
 											<TableCell className="text-right">
@@ -423,10 +389,15 @@ export function ProductList({
 														</DropdownMenuItem>
 														<DropdownMenuSeparator />
 														<DropdownMenuItem
-															onClick={() => onDelete(product)}
+															onClick={() => handleDelete(product)}
 															className="text-destructive"
+															disabled={isDeleting}
 														>
-															<Trash2 className="mr-2 h-4 w-4" />
+															{isDeleting ? (
+																<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+															) : (
+																<Trash2 className="mr-2 h-4 w-4" />
+															)}
 															Delete
 														</DropdownMenuItem>
 													</DropdownMenuContent>
@@ -440,7 +411,7 @@ export function ProductList({
 					</div>
 
 					{/* Pagination */}
-					{filteredProducts.length > itemsPerPage && (
+					{totalPages > 1 && (
 						<div className="mt-4">
 							<Pagination>
 								<PaginationContent>
